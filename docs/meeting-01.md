@@ -3,7 +3,7 @@
 - **Ngày:** 04/11/2026
 - **Hình thức:** Zalo call
 - **Thời lượng:** 15 phút
-- **Người ghi biên bản:** Đỗ Lê Viết Tài
+- **Người ghi biên bản:** Arất Thị Bích Phượng
 
 ## Thành phần tham dự
 - [x] Đỗ Lê Viết Tài
