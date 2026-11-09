@@ -1,7 +1,7 @@
-export default function DoctorsPage() {
-  return (
-    <div>
-      <h1>Quản lý Bác sĩ</h1>
-    </div>
-  );
+'use client';
+
+import DoctorsPage from '@/modules/admin/views/Doctors';
+
+export default function AdminDoctorsPage() {
+  return <DoctorsPage />;
 }

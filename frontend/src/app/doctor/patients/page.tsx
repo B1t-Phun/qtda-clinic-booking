@@ -1,7 +1,7 @@
+'use client';
+
+import PatientsView from '@/modules/doctor/views/PatientsView';
+
 export default function DoctorPatientsPage() {
-  return (
-    <div>
-      <h1>Hồ sơ bệnh nhân</h1>
-    </div>
-  );
+  return <PatientsView />;
 }

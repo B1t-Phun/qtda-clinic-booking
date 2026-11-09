@@ -1,7 +1,7 @@
+'use client';
+
+import TodayView from '@/modules/doctor/views/TodayView';
+
 export default function DoctorDashboardPage() {
-  return (
-    <div>
-      <h1>Bảng điều khiển Bác sĩ</h1>
-    </div>
-  );
+  return <TodayView />;
 }

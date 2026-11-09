@@ -1,7 +1,7 @@
-export default function SpecialtiesPage() {
-  return (
-    <div>
-      <h1>Quản lý Chuyên khoa</h1>
-    </div>
-  );
+'use client';
+
+import SpecialtiesPage from '@/modules/admin/views/Specialties';
+
+export default function AdminSpecialtiesPage() {
+  return <SpecialtiesPage />;
 }

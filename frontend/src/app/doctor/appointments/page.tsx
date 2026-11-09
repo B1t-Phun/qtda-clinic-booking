@@ -1,7 +1,7 @@
+'use client';
+
+import AppointmentsView from '@/modules/doctor/views/AppointmentsView';
+
 export default function DoctorAppointmentsPage() {
-  return (
-    <div>
-      <h1>Lịch khám bệnh được phân công</h1>
-    </div>
-  );
+  return <AppointmentsView />;
 }
