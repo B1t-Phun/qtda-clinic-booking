@@ -191,8 +191,12 @@ function useStoreValue() {
 
   const slotConflicts = (doctor_id: string, slot_date: string, start: string, end: string, ignore = new Set<string>()) =>
     db.time_slots.filter(
-      (s) => s.doctor_id === doctor_id && s.slot_date === slot_date && !ignore.has(s.id) &&
-        (s.start_time === start || (toMin(s.start_time) < toMin(end) && toMin(start) < toMin(s.end_time))),
+      (s) =>
+        s.doctor_id === doctor_id &&
+        s.slot_date === slot_date &&
+        !ignore.has(s.id) &&
+        start < s.end_time &&
+        end > s.start_time,
     )
   const addSlots = (slots: Omit<TimeSlot, 'id' | 'created_at' | 'is_booked'>[]) => {
     const t = now()
