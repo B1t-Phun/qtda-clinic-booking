@@ -587,13 +587,54 @@ exports.createTimeSlot = async (req, res) => {
       });
     }
 
+    if (start_time >= end_time) {
+      return res.status(400).json({
+        success: false,
+        message: 'Giờ kết thúc phải lớn hơn giờ bắt đầu',
+      });
+    }
+
+    // Kiểm tra trùng hoặc chồng lấn khung giờ của cùng bác sĩ
+    const { data: existingSlots, error: checkError } = await supabase
+      .from('time_slots')
+      .select('id, start_time, end_time')
+      .eq('doctor_id', doctor_id)
+      .eq('slot_date', slot_date);
+
+    if (checkError) throw checkError;
+
+    const normStart = start_time.slice(0, 5);
+    const normEnd = end_time.slice(0, 5);
+
+    if (existingSlots && existingSlots.length > 0) {
+      const hasConflict = existingSlots.some((s) => {
+        const sStart = s.start_time.slice(0, 5);
+        const sEnd = s.end_time.slice(0, 5);
+        return normStart < sEnd && normEnd > sStart;
+      });
+      if (hasConflict) {
+        return res.status(409).json({
+          success: false,
+          message: 'Bác sĩ này đã có khung giờ khám bị trùng hoặc chồng lấn vào thời gian đã chọn',
+        });
+      }
+    }
+
     const { data, error } = await supabase
       .from('time_slots')
       .insert([{ doctor_id, slot_date, start_time, end_time, is_booked: false }])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505' || error.code === '23P01') {
+        return res.status(409).json({
+          success: false,
+          message: 'Khung giờ khám bị trùng hoặc chồng lấn với lịch đã có của bác sĩ',
+        });
+      }
+      throw error;
+    }
     return res.status(201).json({ success: true, message: 'Tạo khung giờ thành công', data });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
