@@ -9,6 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 const adminRoutes = require('./routes/adminRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
+const patientRoutes = require('./routes/patientRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/doctor', doctorRoutes);
+app.use('/api/patient', patientRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -63,7 +65,8 @@ app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(`🚀 ClinicCare Backend Server đang chạy tại: http://localhost:${PORT}`);
   console.log(`🏥 Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL}`);
-  console.log(`🔗 Admin Endpoints:  http://localhost:${PORT}/api/admin/...`);
-  console.log(`👨‍⚕️ Doctor Endpoints: http://localhost:${PORT}/api/doctor/...`);
+  console.log(`🔗 Admin Endpoints:   http://localhost:${PORT}/api/admin/...`);
+  console.log(`👨‍⚕️ Doctor Endpoints:  http://localhost:${PORT}/api/doctor/...`);
+  console.log(`🏥 Patient Endpoints: http://localhost:${PORT}/api/patient/...`);
   console.log(`====================================================`);
 });
