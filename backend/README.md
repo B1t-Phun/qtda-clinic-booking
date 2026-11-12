@@ -1,6 +1,7 @@
 # ClinicCare / ClinicBooking Backend API
 
-Backend REST API được xây dựng với **Express.js** và kết nối trực tiếp với cơ sở dữ liệu **Supabase PostgreSQL** theo cấu trúc `database_schema.sql`.
+Backend REST API dùng **Express.js** và **Supabase SDK** (`@supabase/supabase-js`).
+Xác thực và truy vấn dữ liệu đi qua Supabase API bằng HTTPS. Cấu hình bảng và phân quyền trong Supabase Dashboard → SQL Editor theo `docs/database_schema.sql` và `docs/auth_security.sql`.
 
 ## 1. Cấu hình biến môi trường (`.env` hoặc `.env.local`)
 Backend tự động tải cấu hình từ `.env` trong thư mục `backend/` hoặc `.env.local` ở thư mục gốc:
@@ -9,7 +10,6 @@ Backend tự động tải cấu hình từ `.env` trong thư mục `backend/` h
 NEXT_PUBLIC_SUPABASE_URL=https://bcvqtpyckdgeyazbuuio.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
-DATABASE_URL=postgresql://postgres:...
 PORT=5000
 ```
 

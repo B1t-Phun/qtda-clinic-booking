@@ -1,18 +1,18 @@
 'use client';
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { Activity, CalendarCheck2, CalendarDays, Check, Clock3, Hourglass, PercentCircle, Stethoscope, UserX, Users, Wallet, X } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Activity, CalendarDays, Check, Hourglass, X } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useStore } from '@/modules/admin/store/store'
-import { addDays, fmtCompactVND, fmtDate, fmtNum, fmtPct, fmtShort, fmtVND, STATUS_META, STATUSES, todayISO, WEEKDAYS_LONG, parseISODate } from '@/lib/format'
-import { byDay, fillRate, inRange, pctChange, rate, revenue, statusCounts } from '@/lib/analytics'
-import { Avatar, Button, Card, EmptyState, ErrorState, PageHeader, PersonCell, Skeleton, StatusBadge } from '@/components/ui/core'
+import { addDays, fmtDate, fmtNum, todayISO, WEEKDAYS_LONG, parseISODate } from '@/lib/format';
+import { byDay, fillRate, inRange, pctChange, rate, revenue } from '@/lib/analytics';
+import { Avatar, Button, Card, EmptyState, ErrorState, PageHeader, Skeleton } from '@/components/ui/core';
 import { ChartCard, KpiCard, tooltipStyle } from '@/components/ui/widgets'
 import { useAppointmentUI } from './appointments/AppointmentUI'
 
 export default function Dashboard() {
   const { appts, db, doctorViews, loading, error, reload } = useStore()
-  const { open, actions } = useAppointmentUI()
+  const { actions } = useAppointmentUI()
   const t = todayISO()
 
   const k = useMemo(() => {
@@ -39,16 +39,8 @@ export default function Dashboard() {
     }
   }, [appts, db, doctorViews, t])
 
-  const series = useMemo(() => byDay(appts, addDays(t, -30), addDays(t, 14)).map((d) => ({ ...d, label: fmtShort(d.date) })), [appts, t])
-  const counts = useMemo(() => statusCounts(appts), [appts])
-  const donut = STATUSES.map((s) => ({ name: STATUS_META[s].label, value: counts[s], color: STATUS_META[s].color })).filter((x) => x.value)
   const bySpec = db.specialties.map((s) => ({ name: s.name, value: appts.filter((a) => a.specialty.id === s.id).length })).sort((a, b) => b.value - a.value)
-  const topDocs = doctorViews
-    .map((d) => ({ name: d.profile.full_name.split(' ').slice(-2).join(' '), full: d.profile.full_name, value: appts.filter((a) => a.doctor.id === d.id && a.status === 'completed').length }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5)
   const pendingList = appts.filter((a) => a.status === 'pending').sort((a, b) => (a.slot.slot_date + a.slot.start_time).localeCompare(b.slot.slot_date + b.slot.start_time))
-  const todayList = appts.filter((a) => a.slot.slot_date === t && a.status !== 'cancelled').sort((a, b) => a.slot.start_time.localeCompare(b.slot.start_time))
 
   if (error) return <Card><ErrorState onRetry={reload} /></Card>
   const L = loading

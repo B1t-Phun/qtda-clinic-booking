@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import {
   Check,
@@ -15,15 +16,14 @@ import {
   Avatar,
   DoctorButton,
   Field,
-  PasswordDialog,
 } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
 import { money } from '../utils';
 
 export default function ProfileView() {
-  const { profile, doctor, setProfile, logout, toast } = useDoctorStore();
+  const { profile, doctor, setProfile, logout } = useDoctorStore();
   const [draft, setDraft] = useState(profile);
-  const [password, setPassword] = useState(false);
+  const router = useRouter();
 
   const save = () => {
     setProfile({ ...draft, updated_at: new Date().toISOString() });
@@ -154,7 +154,7 @@ export default function ProfileView() {
           </section>
 
           <section className="card settings-card">
-            <button type="button" onClick={() => setPassword(true)}>
+            <button type="button" onClick={() => router.push('/account/security') }>
               <LockKeyhole />
               <span>
                 <b>Đổi mật khẩu</b>
@@ -174,15 +174,6 @@ export default function ProfileView() {
         </aside>
       </div>
 
-      {password && (
-        <PasswordDialog
-          close={() => setPassword(false)}
-          done={() => {
-            setPassword(false);
-            toast('Đã đổi mật khẩu thành công');
-          }}
-        />
-      )}
     </div>
   );
 }

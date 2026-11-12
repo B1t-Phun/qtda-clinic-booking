@@ -1,6 +1,4 @@
-// Định nghĩa kiểu dữ liệu cho Xác thực & Phân quyền (Task 3.2 - Authentication & Roles)
-
-export type UserRole = 'admin' | 'doctor' | 'patient' | 'receptionist';
+export type UserRole = 'admin' | 'doctor' | 'patient';
 
 export interface AuthUser {
   id: string;
@@ -13,7 +11,7 @@ export interface AuthUser {
 export interface LoginFormState {
   email: string;
   password: string;
-  role?: UserRole;
+  remember?: boolean;
 }
 
 export interface RegisterFormState {

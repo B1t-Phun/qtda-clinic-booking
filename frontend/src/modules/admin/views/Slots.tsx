@@ -37,7 +37,7 @@ export function SlotBoard({ doctorId, showDoctor }: { doctorId: string | null; s
       onClick: () => {
         if (a) return open(a.id)
         if (lock) return toast({ tone: 'info', title: 'Khung giờ bị khóa', description: lock })
-        setSel((x) => { const n = new Set(x); n.has(s.id) ? n.delete(s.id) : n.add(s.id); return n })
+        setSel((x) => { const n = new Set(x); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n })
       },
     }
   })

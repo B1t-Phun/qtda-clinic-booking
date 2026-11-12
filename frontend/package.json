@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test test/*.test.cjs",
+    "predev": "node ../scripts/sync-env.mjs --frontend",
+    "prebuild": "node ../scripts/sync-env.mjs --frontend",
+    "prestart": "node ../scripts/sync-env.mjs --frontend"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

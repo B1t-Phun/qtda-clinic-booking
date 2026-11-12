@@ -1,5 +1,6 @@
 'use client';
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import Image from 'next/image'
 import { AlertTriangle, Inbox, Loader2, RefreshCw, SearchX } from 'lucide-react'
 import { cx, STATUS_META } from '@/lib/format'
 import type { Status } from '@/modules/admin/store/types'
@@ -73,7 +74,7 @@ export function Avatar({ name, url, size = 36, className }: { name: string; url?
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) | 0
   const color = AV_COLORS[Math.abs(h) % AV_COLORS.length]
   return url ? (
-    <img src={url} alt={name} className={cx('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />
+    <Image src={url} alt={name} width={size} height={size} unoptimized className={cx('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />
   ) : (
     <span
       aria-hidden

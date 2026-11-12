@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   CalendarClock,
@@ -12,7 +13,7 @@ import {
 export interface NavItem {
   path: string
   label: string
-  icon: any
+  icon: LucideIcon
   section: 'QUẢN LÝ' | 'HỆ THỐNG'
 }
 
