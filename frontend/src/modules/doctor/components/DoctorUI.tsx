@@ -18,7 +18,6 @@ import {
   type Appointment,
   type AppointmentStatus,
   type Profile,
-  type TimeSlot,
   statusLabel,
 } from '../data';
 import { initials, longDate, ageOf, genderLabel } from '../utils';
@@ -254,7 +253,11 @@ export function PasswordDialog({
   );
 }
 
-export function AppointmentDetailModal({
+export function AppointmentDetailModal(props: { appointment: Appointment; onClose: () => void }) {
+  return <AppointmentDetails key={props.appointment.id} {...props} />;
+}
+
+function AppointmentDetails({
   appointment,
   onClose,
 }: {
@@ -266,30 +269,21 @@ export function AppointmentDetailModal({
   const s = slots.find((x) => x.id === appointment.slot_id);
 
   const [note, setNote] = useState(appointment.doctor_note || '');
-  const [saving, setSaving] = useState(false);
+  const saving = note !== appointment.doctor_note;
   const [cancel, setCancel] = useState(false);
-
-  useEffect(() => {
-    setNote(appointment.doctor_note || '');
-  }, [appointment.id, appointment.doctor_note]);
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setNote(val);
-    setSaving(true);
   };
 
   useEffect(() => {
-    if (note === appointment.doctor_note) {
-      setSaving(false);
-      return;
-    }
+    if (!saving) return;
     const timer = setTimeout(() => {
       updateNote(note);
-      setSaving(false);
     }, 600);
     return () => clearTimeout(timer);
-  }, [note, appointment.doctor_note, updateNote]);
+  }, [note, saving, updateNote]);
 
   if (!p || !s) return null;
 

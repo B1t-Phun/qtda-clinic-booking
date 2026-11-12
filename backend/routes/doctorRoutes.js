@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const doctorController = require('../controllers/doctorController');
 
+const { configuredAuth } = require('../middleware/auth');
+const { requireUser, requireRole, bindDoctor } = configuredAuth();
+router.use(requireUser, requireRole('doctor'), bindDoctor);
+
 // 1. Dashboard Today Stats
 router.get('/today-stats', doctorController.getDoctorTodayStats);
 

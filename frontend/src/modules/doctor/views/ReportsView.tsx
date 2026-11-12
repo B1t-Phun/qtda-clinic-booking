@@ -1,21 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  BarChart3,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Download,
-  FileSpreadsheet,
-  Star,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
+import { CheckCircle2, Clock, Download, FileSpreadsheet, Star, TrendingUp, Users } from 'lucide-react';
+
 import { useDoctorStore } from '../store/store';
 
 export default function ReportsView() {
-  const { profile, doctor } = useDoctorStore();
+  const { profile } = useDoctorStore();
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('week');
 
   const doctorDisplayName = profile.full_name.startsWith('BS.')

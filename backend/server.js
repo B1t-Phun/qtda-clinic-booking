@@ -1,26 +1,26 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
-
-// Load environment variables
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+require('./config/env');
 
 const adminRoutes = require('./routes/adminRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 
 const app = express();
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: [...new Set([process.env.APP_URL || 'http://localhost:3000', 'http://127.0.0.1:3000', ...(process.env.AUTH_ADDITIONAL_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean)])],
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '16kb' }));
+app.use(express.urlencoded({ extended: false, limit: '16kb' }));
 
 // Request logger
 app.use((req, res, next) => {
@@ -56,7 +56,7 @@ app.use((err, req, res, next) => {
   console.error('Lỗi server:', err);
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Lỗi hệ thống nội bộ',
+    message: 'Yêu cầu không thể xử lý.',
   });
 });
 

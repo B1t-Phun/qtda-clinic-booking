@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 
+const { configuredAuth } = require('../middleware/auth');
+const { requireUser, requireRole } = configuredAuth();
+router.use(requireUser, requireRole('admin'));
+
 // 1. Dashboard Stats
 router.get('/stats', adminController.getDashboardStats);
 

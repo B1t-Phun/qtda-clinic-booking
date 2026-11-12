@@ -2,21 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import {
-  Activity,
-  Bell,
-  CalendarCheck2,
-  CalendarClock,
-  Check,
-  CheckCheck,
-  ChevronRight,
-  Clock,
-  Mail,
-  MessageSquare,
-  Settings,
-  UserCheck,
-} from 'lucide-react';
-import { useDoctorStore } from '../store/store';
+import { Activity, Bell, CalendarClock, CheckCheck, ChevronRight, Clock, Mail, MessageSquare, Settings, UserCheck } from 'lucide-react';
+
+
 
 interface NotificationItem {
   id: string;
