@@ -17,6 +17,7 @@ import {
   Phone,
   Clock,
   MapPin,
+  User,
 } from 'lucide-react';
 import { ToastProvider } from '@/components/ui/overlay';
 import { Button, Avatar } from '@/components/ui/core';
@@ -83,8 +84,22 @@ function ClientHeader() {
       }
     });
 
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ full_name?: string }>;
+      if (customEvent.detail?.full_name) {
+        setCurrentUser((prev) =>
+          prev ? { ...prev, full_name: customEvent.detail.full_name } : prev
+        );
+      } else {
+        loadUser();
+      }
+    };
+
+    window.addEventListener('cliniccare:profile-updated', handleProfileUpdate);
+
     return () => {
       authListener.subscription.unsubscribe();
+      window.removeEventListener('cliniccare:profile-updated', handleProfileUpdate);
     };
   }, []);
 
@@ -148,25 +163,42 @@ function ClientHeader() {
           {loadingUser ? (
             <div className="size-9 rounded-full bg-slate-100 animate-pulse" />
           ) : currentUser ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-line">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 pl-2 border-l border-line">
+              <Link
+                href="/client/profile"
+                className="flex items-center gap-2 group p-1 -m-1 rounded-lg hover:bg-slate-50 transition-colors"
+                title="Hồ sơ cá nhân của bạn"
+              >
                 <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={32} />
                 <div className="text-left hidden lg:block">
-                  <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate">
+                  <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate group-hover:text-primary transition-colors">
                     {currentUser.full_name}
                   </p>
                   <p className="text-[11px] text-muted leading-tight truncate max-w-[120px]">
                     {currentUser.email}
                   </p>
                 </div>
-              </div>
+              </Link>
+
+              <Link href="/client/profile">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<User className="size-3.5" />}
+                  title="Xem và chỉnh sửa thông tin cá nhân"
+                  className="h-8 px-2.5 text-xs text-slate-700 hover:text-primary"
+                >
+                  <span className="hidden xl:inline">Hồ sơ</span>
+                </Button>
+              </Link>
+
               <Button
                 variant="ghost"
                 size="sm"
                 icon={<LogOut className="size-4" />}
                 onClick={handleLogout}
                 title="Đăng xuất"
-                className="text-slate-500 hover:text-red-600"
+                className="text-slate-500 hover:text-red-600 h-8 px-2.5"
               >
                 <span className="hidden xl:inline">Thoát</span>
               </Button>
@@ -228,17 +260,40 @@ function ClientHeader() {
 
           <div className="mt-4 pt-4 border-t border-line">
             {currentUser ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={36} />
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{currentUser.full_name}</p>
-                    <p className="text-xs text-muted truncate max-w-[200px]">{currentUser.email}</p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  href="/client/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={36} />
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-ink leading-tight">{currentUser.full_name}</p>
+                      <p className="text-xs text-muted truncate max-w-[180px]">{currentUser.email}</p>
+                    </div>
                   </div>
+                  <span className="text-xs font-semibold text-primary">Xem hồ sơ &rarr;</span>
+                </Link>
+
+                <div className="flex items-center justify-between pt-1">
+                  <Link
+                    href="/client/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-xs font-medium text-slate-700 hover:text-primary flex items-center gap-1.5"
+                  >
+                    <User className="size-3.5" />
+                    Chỉnh sửa thông tin
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<LogOut className="size-4 text-red-500" />}
+                    onClick={handleLogout}
+                  >
+                    Thoát
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" icon={<LogOut className="size-4 text-red-500" />} onClick={handleLogout}>
-                  Thoát
-                </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -323,6 +378,11 @@ function ClientFooter() {
               <li>
                 <Link href="/client/appointments" className="text-slate-600 hover:text-primary transition-colors">
                   Lịch hẹn của tôi
+                </Link>
+              </li>
+              <li>
+                <Link href="/client/profile" className="text-slate-600 hover:text-primary transition-colors">
+                  Thông tin cá nhân
                 </Link>
               </li>
             </ul>

@@ -16,6 +16,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -57,13 +58,39 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            phone: phone.trim(),
+            date_of_birth: dateOfBirth,
+            gender: gender,
+            role: 'patient',
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message || 'Lỗi đăng ký tài khoản.');
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
         router.push('/client');
-      }, 1500);
-    }, 700);
+        router.refresh();
+      }, 1200);
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('Đã có lỗi xảy ra. Vui lòng thử lại.');
+      setLoading(false);
+    }
   };
 
   return (

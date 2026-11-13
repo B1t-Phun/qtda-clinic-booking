@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  CalendarPlus,
   Eye,
   EyeOff,
   HeartPulse,
@@ -17,6 +16,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { UserRole } from '@/types/auth';
+import { createClient } from '@/lib/supabase/client';
 
 const DEMO_ACCOUNTS: Record<
   UserRole,
@@ -65,7 +65,7 @@ export default function LoginPage() {
     setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -75,11 +75,33 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const target = DEMO_ACCOUNTS[role].redirect;
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInError) {
+        console.warn('Supabase sign-in error:', signInError.message);
+        setError(
+          signInError.message === 'Invalid login credentials'
+            ? 'Email hoặc mật khẩu không chính xác. (Tài khoản mẫu: mật khẩu là password)'
+            : signInError.message
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Successful auth
+      const target = DEMO_ACCOUNTS[role]?.redirect || (role === 'patient' ? '/client' : '/admin');
       router.push(target);
-    }, 600);
+      router.refresh();
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Đã có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại.');
+      setLoading(false);
+    }
   };
 
   return (

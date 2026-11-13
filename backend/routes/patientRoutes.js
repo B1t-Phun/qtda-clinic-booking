@@ -16,4 +16,8 @@ router.post('/appointments', patientController.createAppointment);
 router.get('/appointments', patientController.getMyAppointments);
 router.put('/appointments/:id/cancel', patientController.cancelAppointment);
 
+// 4. Hồ sơ cá nhân bệnh nhân
+router.get('/profile/:id', patientController.getProfile);
+router.put('/profile/:id', patientController.updateProfile);
+
 module.exports = router;
