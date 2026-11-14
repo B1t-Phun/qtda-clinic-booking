@@ -45,3 +45,17 @@ FR-01 Đăng ký, đăng nhập | FR-02 Admin quản lý bác sĩ | FR-03 Admin 
 | TC-20 | FR-07 | Đã có lịch đặt | Mở lịch sử | Hiện đúng các lịch đã đặt | Chưa test được, chưa đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
 | TC-21 | FR-07 | Đã có lịch đặt | Hủy lịch | Lịch chuyển sang đã hủy, khung giờ trống lại | Chưa test được, chưa đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
 | TC-31 | FR-06 | Đăng nhập bệnh nhân, bác sĩ chưa có khung giờ ngày đã chọn | Vào Đặt lịch, chọn bác sĩ, chọn ngày không có khung giờ | Hiện thông báo không có lịch, không cho sang bước xác nhận | Hiện "Bác sĩ chưa có lịch khám vào ngày này", nút Tiếp theo bị khóa | Pass | Test trên localhost, Chrome |
+
+## 4. Bác sĩ (FR-08, FR-09)
+| TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|---|---|---|---|---|
+| TC-22 | FR-08 | Đăng nhập bác sĩ, có lịch hôm nay | Mở lịch khám trong ngày | Hiện đúng lịch của bác sĩ đó | Chưa test được, không đăng nhập được tài khoản bác sĩ do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+| TC-23 | FR-08 | Bác sĩ không có lịch hôm nay | Mở lịch khám trong ngày | Hiện thông báo không có lịch | Chưa test được, không đăng nhập được tài khoản bác sĩ do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+| TC-24 | FR-09 | Có lịch chờ xác nhận | Bấm Xác nhận | Trạng thái chuyển thành đã xác nhận | Chưa test được, không đăng nhập được tài khoản bác sĩ do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+| TC-25 | FR-09 | Có lịch đã xác nhận | Bấm Hoàn thành | Trạng thái chuyển thành hoàn thành | Chưa test được, không đăng nhập được tài khoản bác sĩ do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+
+## 5. Giao diện và kiểm tra dữ liệu nhập
+| TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|---|---|---|---|---|
+| TC-26 | Chung | Mở trang bằng điện thoại (hoặc thu nhỏ trình duyệt) | Mở trang đặt lịch | Hiển thị đủ, không vỡ bố cục | Hiển thị đủ nội dung, không vỡ bố cục (ghi kích thước màn hình đã thử, ví dụ iPhone SE 375px) | Pass | Test bằng Chrome DevTools, localhost |
+| TC-27 | Chung | Bất kỳ form nào | Để trống ô bắt buộc rồi bấm Gửi | Báo lỗi rõ ràng ở đúng ô | Chưa test được, các form hiện chỉ trả về lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
