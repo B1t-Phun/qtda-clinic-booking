@@ -33,3 +33,15 @@ FR-01 Đăng ký, đăng nhập | FR-02 Admin quản lý bác sĩ | FR-03 Admin 
 | TC-12 | FR-03 | Đã có một chuyên khoa | Thêm chuyên khoa trùng tên | Báo lỗi trùng tên | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
 | TC-13 | FR-04 | Có bác sĩ | Tạo khung giờ 9:00 ngày mai cho bác sĩ | Khung giờ được tạo | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
 | TC-14 | FR-04 | Đã có khung giờ 9:00 ngày mai của bác sĩ đó | Tạo lại đúng khung giờ đó | Báo lỗi, không tạo trùng | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+
+## 3. Bệnh nhân (FR-05, FR-06, FR-07)
+| TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|---|---|---|---|---|
+| TC-15 | FR-05 | Đăng nhập bệnh nhân | Mở danh sách bác sĩ | Hiện đủ bác sĩ đã được admin tạo | Hiện danh sách bác sĩ đầy đủ (ví dụ có BS Nguyễn Văn An, chuyên khoa Nội tổng quát) | Pass | Test bằng tài khoản Google, localhost, Chrome |
+| TC-16 | FR-05 | Có nhiều chuyên khoa | Lọc theo một chuyên khoa | Chỉ hiện bác sĩ thuộc chuyên khoa đó | Lọc theo chuyên khoa (Nội tổng quát), chỉ hiện bác sĩ thuộc chuyên khoa đó | Pass | Test bằng tài khoản Google, localhost, Chrome |
+| TC-17 | FR-06 | Có khung giờ trống | Chọn bác sĩ, chọn giờ, bấm Đặt lịch | Đặt thành công, hiện trong lịch sử | Không đặt được lịch: nhóm đã tạo lịch khoảng ngày 9, 13/11, nhưng bác sĩ Nguyễn Văn An, 14 ngày thử (15/11 đến 28/11) đều báo 0 giờ còn trống, nút Tiếp theo bị khóa | Fail | Bug #31 |
+| TC-18 | FR-06 | Khung giờ đã có người đặt | Đặt lại đúng khung giờ đó | Báo lỗi, không đặt trùng | Chưa test được, không đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
+| TC-19 | FR-06 | Hai bệnh nhân cùng mở một khung giờ | Cả hai bấm Đặt gần như cùng lúc | Chỉ một người thành công | Chưa test được, không đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
+| TC-20 | FR-07 | Đã có lịch đặt | Mở lịch sử | Hiện đúng các lịch đã đặt | Chưa test được, chưa đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
+| TC-21 | FR-07 | Đã có lịch đặt | Hủy lịch | Lịch chuyển sang đã hủy, khung giờ trống lại | Chưa test được, chưa đặt được lịch nào | Blocked | Phụ thuộc TC-17, Bug #31 |
+| TC-31 | FR-06 | Đăng nhập bệnh nhân, bác sĩ chưa có khung giờ ngày đã chọn | Vào Đặt lịch, chọn bác sĩ, chọn ngày không có khung giờ | Hiện thông báo không có lịch, không cho sang bước xác nhận | Hiện "Bác sĩ chưa có lịch khám vào ngày này", nút Tiếp theo bị khóa | Pass | Test trên localhost, Chrome |
