@@ -18,6 +18,8 @@ const routes = [
   ['/doctor/schedule', 'ScheduleView', 'schedule'], ['/doctor/patients', 'PatientsView', 'patients'],
   ['/doctor/profile', 'ProfileView', 'profile'], ['/doctor/notifications', 'NotificationsView', 'activity'],
   ['/doctor/reports', 'ReportsView', 'reports'],
+  ['/client/profile', '', 'patient-profile'],
+  ['/doctor/patient-preview', 'PatientDetailView', 'patient-detail'],
 ];
 async function query(sql) {
   const response = await fetch('https://api.supabase.com/v1/projects/' + ref + '/database/query', {
@@ -28,16 +30,20 @@ async function query(sql) {
   return response.json();
 }
 function load(filename) {
+  if (filename.endsWith('.module.css')) {
+    const css=fs.readFileSync(filename,'utf8');
+    return { __esModule:true, default:Object.fromEntries([...css.matchAll(/\.([a-zA-Z_][a-zA-Z0-9_-]*)/g)].map(m=>[m[1],'review_'+m[1]])) };
+  }
   if (cache.has(filename)) return cache.get(filename).exports;
-  const module = { exports: {} };
-  cache.set(filename, module);
+  const loadedModule = { exports: {} };
+  cache.set(filename, loadedModule);
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     fileName: filename, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mockedNavigation = { usePathname: () => currentPath, useSearchParams: () => new URLSearchParams(),
     useRouter: () => ({ push() {} }) };
   vm.runInNewContext(code, {
-    module, exports: module.exports,
+    module: loadedModule, exports: loadedModule.exports,
     require(name) {
       if (name === 'react') return React;
       if (name === 'react/jsx-runtime') return require('../node_modules/react/jsx-runtime');
@@ -53,7 +59,7 @@ function load(filename) {
     console, URL, URLSearchParams, Date, Intl, AbortSignal, AbortController, setTimeout, clearTimeout, setInterval, clearInterval,
     fetch: () => { throw new Error('Server rendering must not start a browser data request'); },
   }, { filename });
-  return module.exports;
+  return loadedModule.exports;
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(operation, timeout) {
@@ -93,8 +99,19 @@ async function evaluate(sessionId, expression) {
     snapshots.push(normalize(result));
   }
   if (snapshots.length !== 3) throw new Error('Expected three real doctors for visual review');
+  for (const snapshot of snapshots) {
+    const patient = snapshot.patients[0];
+    if (!patient) continue;
+    if (!/^[a-f0-9-]{36}$/i.test(patient.id)) throw new Error('Invalid patient identity');
+    const sql = "begin read only; set local role authenticated; select set_config('request.jwt.claims','" +
+      JSON.stringify({ sub: patient.id, role: 'authenticated', aal: 'aal1' }) + "',true); " +
+      "select jsonb_build_object('all',count(*),'completed',count(*) filter(where status='completed')) as statistics from public.appointments where patient_id=auth.uid(); rollback;";
+    const rows = await query(sql);
+    snapshot.patientStatistics = rows.find(row => row.statistics)?.statistics;
+    if (!snapshot.patientStatistics) throw new Error('Real patient statistics unavailable');
+  }
   fs.mkdirSync(artifacts, { recursive: true });
-  const css = fs.readFileSync(path.join(sourceRoot, 'app/doctor/doctor.css'), 'utf8');
+  const css = fs.readFileSync(path.join(sourceRoot, 'app/doctor/doctor.css'), 'utf8')+'\n'+fs.readFileSync(path.join(sourceRoot,'components/profile/Profile.module.css'),'utf8').replace(/\.([a-zA-Z_][a-zA-Z0-9_-]*)/g,'.review_$1').replace(/:global\(([^)]+)\)/g,'$1');
   const { DoctorProvider } = load(path.join(sourceRoot, 'modules/doctor/store/store.tsx'));
   const { DoctorShell } = load(path.join(sourceRoot, 'modules/doctor/layout/DoctorShell.tsx'));
   server = http.createServer((req, res) => {
@@ -103,9 +120,20 @@ async function evaluate(sessionId, expression) {
       currentSnapshot = snapshots[Number(url.searchParams.get('account') || 0)];
       const route = routes.find(row => row[0] === url.pathname) || routes[0];
       currentPath = route[0];
-      const View = load(path.join(sourceRoot, 'modules/doctor/views/' + route[1] + '.tsx')).default;
-      const html = renderToStaticMarkup(React.createElement(DoctorProvider, { initialSnapshot: currentSnapshot },
-        React.createElement(DoctorShell, null, React.createElement(View))));
+      const patient=currentSnapshot.patients[0];
+      let content;
+      if(route[0]==='/client/profile') {
+        if(!patient)throw Error('Real patient profile unavailable');
+        const {PersonalProfilePanel}=load(path.join(sourceRoot,'components/profile/PersonalProfile.tsx'));
+        content=React.createElement('main',{style:{maxWidth:1180,margin:'auto',padding:22}},React.createElement(PersonalProfilePanel,{initialProfile:patient, statistics:[
+          {kind:'all',label:'Tổng lịch hẹn',value:currentSnapshot.patientStatistics.all,href:'/client/appointments'},
+          {kind:'completed',label:'Lượt khám hoàn thành',value:currentSnapshot.patientStatistics.completed,href:'/client/appointments'},
+        ],summaryAction:{href:'/client/booking',label:'Đặt lịch khám mới'}}));
+      }else{
+        const View=load(path.join(sourceRoot,'modules/doctor/views/'+route[1]+'.tsx')).default;
+        content=React.createElement(DoctorShell,null,React.createElement(View,route[2]==='patient-detail'?{id:patient?.id||'unknown'}:{}));
+      }
+      const html = renderToStaticMarkup(React.createElement(DoctorProvider, { initialSnapshot: currentSnapshot },content));
       res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8' });
       res.end('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial,sans-serif}button{cursor:pointer}a{color:inherit}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}' + css + '</style><body>' + html + '</body></html>');
     } catch (error) { res.writeHead(500); res.end(String(error.message)); }
@@ -132,12 +160,12 @@ async function evaluate(sessionId, expression) {
   const findings = [];
   for (let account = 0; account < snapshots.length; account++) {
     for (const [route, , label] of (account ? [routes[0]] : routes)) {
-      for (const [size, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ...(label === 'schedule' ? [['tablet', 820, 1180]] : [])]) {
+      for (const [size, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ...(['profile','patient-profile'].includes(label) ? [['laptop',1100,900]] : []), ...(['schedule','profile','patient-profile','patient-detail'].includes(label) ? [['tablet', 820, 1180]] : [])]) {
         await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false }, sessionId);
         await send('Page.navigate', { url: 'http://127.0.0.1:' + server.address().port + route + '?account=' + account }, sessionId);
         if (!await until(() => evaluate(sessionId, 'document.readyState==="complete" && Boolean(document.querySelector("h1"))'), 10_000)) throw new Error('Page did not render: ' + label);
         await delay(100);
-        const result = await evaluate(sessionId, '({overflow:document.documentElement.scrollWidth>innerWidth+1,width:innerWidth,contentWidth:document.documentElement.scrollWidth,headings:document.querySelectorAll("h1").length})');
+        const result = await evaluate(sessionId, '({profileColumns:[...document.querySelectorAll(".review_layout > *")].map(element=>({height:element.getBoundingClientRect().height,bottom:element.getBoundingClientRect().bottom})),statistics:document.querySelectorAll(".review_statistic").length,overflow:document.documentElement.scrollWidth>innerWidth+1,width:innerWidth,contentWidth:document.documentElement.scrollWidth,headings:document.querySelectorAll("h1").length,profileRole:document.querySelector("[data-role]")?.getAttribute("data-role"),profileColor:document.querySelector("[data-role]")?getComputedStyle(document.querySelector("[data-role]")).getPropertyValue("--profile-primary").trim():null})');
         const screenshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }, sessionId);
         const filename = 'doctor-' + (account + 1) + '-' + label + '-' + size + '.png';
         fs.writeFileSync(path.join(artifacts, filename), Buffer.from(screenshot.data, 'base64'));

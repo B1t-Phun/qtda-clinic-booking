@@ -12,8 +12,10 @@ export function AuthProvider({ user, children }: { user: AuthUser; children: Rea
   useEffect(() => {
     let active = true;
     let checking = false;
+    let checkAgain = false;
     async function refresh() {
-      if (document.visibilityState === 'hidden' || checking) return;
+      if (document.visibilityState === 'hidden' || !active) return;
+      if (checking) { checkAgain = true; return; }
       checking = true;
       try {
         const response = await fetch('/api/auth/session', { cache: 'no-store' });
@@ -27,7 +29,7 @@ export function AuthProvider({ user, children }: { user: AuthUser; children: Rea
           (roleForPath(pathname) && roleForPath(pathname) !== state.user.role)) window.location.replace(ROLE_HOME[state.user.role]);
         else setCurrentUser(state.user);
       } catch { /* APIs still authorize each request while the connection is unavailable. */ }
-      finally { checking = false; }
+      finally { checking = false; if (checkAgain && active) { checkAgain = false; void refresh(); } }
     }
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('cliniccare-auth') : null;
     if (channel) channel.onmessage = (event) => {
@@ -39,7 +41,8 @@ export function AuthProvider({ user, children }: { user: AuthUser; children: Rea
     window.addEventListener('pageshow', refresh);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('pageshow', refresh); channel?.close(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    window.addEventListener('cliniccare-profile-updated', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('pageshow', refresh); channel?.close(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('cliniccare-profile-updated', refresh); };
   }, [user.id, user.role, pathname]);
   const required = roleForPath(pathname);
   if (required && required !== currentUser.role) return <p className="p-8 text-center">Đang kiểm tra quyền truy cập…</p>;

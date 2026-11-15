@@ -52,6 +52,7 @@ interface DoctorStore extends DoctorSnapshot {
   addSlots: (slots: NewSlot[]) => Promise<boolean>;
   deleteSlot: (id: string) => Promise<boolean>;
   saveProfile: (profile: ProfileInput) => Promise<boolean>;
+  syncProfile: (profile: Profile) => void;
   saveProfessional: (doctor: ProfessionalInput) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -200,7 +201,7 @@ export function DoctorProvider({ initialSnapshot, children }: { initialSnapshot:
   return <DoctorContext.Provider value={{ ...snapshot, now, pending, refreshing, error, toasts, toast, refresh,
     selectedAppointment: snapshot.appointments.find(a => a.id === selectedId) || null,
     setSelectedAppointment: appointment => setSelectedId(appointment?.id || null),
-    act, addSlots, deleteSlot, saveProfile, saveProfessional, logout: () => logout((message: string) => toast(message, true)),
+    act, addSlots, deleteSlot, saveProfile, saveProfessional, syncProfile: profile => { request.current?.abort(); ++sequence.current; setRefreshing(false); setSnapshot(previous => ({ ...previous, profile: profileValues(profile) })); }, logout: () => logout((message: string) => toast(message, true)),
   }}>{children}</DoctorContext.Provider>;
 }
 export function useDoctorStore() {

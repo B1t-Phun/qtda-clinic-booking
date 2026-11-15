@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useState } from 'react';
 import { Search } from 'lucide-react';
+import Link from 'next/link';
 import { Avatar, EmptyState, Overlay, PageHeading, Pagination, StatusBadge } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
 import { ageOf, dateVN, genderLabel, searchText, timeLabel } from '../utils';
@@ -31,7 +32,7 @@ export default function PatientsView() {
               <small>{genderLabel[patient.gender]} · {ageOf(patient.date_of_birth, store.now)} tuổi</small></span></button></td>
               <td data-label="Liên hệ">{patient.phone || 'Chưa có số điện thoại'}<small>{patient.email || 'Chưa có email'}</small></td>
               <td data-label="Hoàn thành">{completed.length} lượt</td><td data-label="Gần nhất">{last ? dateVN(last) : 'Chưa khám'}</td>
-              <td><button className="btn btn-secondary" onClick={() => setSelectedId(patient.id)}>Xem lịch sử</button></td></tr>;
+              <td><Link className="btn btn-secondary" href={"/doctor/patients/" + patient.id}>Xem hồ sơ</Link></td></tr>;
           })}</tbody></table>
         <Pagination page={current} total={patients.length} pageSize={pageSize} onChange={setPage} />
       </>}
@@ -41,7 +42,7 @@ export default function PatientsView() {
       <dl className="patient-info"><div><dt>Điện thoại</dt><dd>{selected.phone ? <a href={'tel:' + selected.phone}>{selected.phone}</a> : 'Chưa cập nhật'}</dd></div>
         <div><dt>Email</dt><dd>{selected.email || 'Chưa cập nhật'}</dd></div><div><dt>Ngày sinh</dt><dd>{dateVN(selected.date_of_birth)}</dd></div>
         <div><dt>Địa chỉ</dt><dd>{selected.address || 'Chưa cập nhật'}</dd></div></dl>
-      <section className="detail-section"><h3>Lịch sử khám với bạn</h3><div className="visit-list">{history.map(a => {
+      <Link className="btn btn-secondary mt-4" href={"/doctor/patients/" + selected.id} onClick={() => setSelectedId(null)}>Mở hồ sơ chi tiết</Link><section className="detail-section"><h3>Lịch sử khám với bạn</h3><div className="visit-list">{history.map(a => {
         const slot = slots.get(a.slot_id);
         return <button key={a.id} onClick={() => { setSelectedId(null); store.setSelectedAppointment(a); }}><span><strong>{slot ? dateVN(slot.slot_date) + ' · ' + timeLabel(slot.start_time) : 'Lịch hẹn #' + a.id}</strong>
           <small>{a.reason || 'Chưa có lý do khám'}</small>{a.doctor_note && <p className="line-clamp">{a.doctor_note}</p>}</span><StatusBadge appointment={a} /></button>;
