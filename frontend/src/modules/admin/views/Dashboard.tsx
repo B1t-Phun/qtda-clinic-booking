@@ -23,6 +23,8 @@ export default function Dashboard() {
     const createdIn = (from: number, to: number) => pending.filter((a) => { const d = a.created_at.slice(0, 10); return d > addDays(t, from) && d <= addDays(t, to) }).length
     const cur = appts.filter((a) => inRange(a, addDays(t, -13), t))
     const prev = appts.filter((a) => inRange(a, addDays(t, -27), addDays(t, -14)))
+    const thisWeek = appts.filter((a) => inRange(a, addDays(t, -6), t))
+    const previousWeek = appts.filter((a) => inRange(a, addDays(t, -13), addDays(t, -7)))
     const cancel = (l: typeof appts) => rate(l.filter((a) => a.status === 'cancelled').length, l.length)
     const noshow = (l: typeof appts) => rate(l.filter((a) => a.status === 'no_show').length, l.filter((a) => a.status === 'no_show' || a.status === 'completed').length)
     const active = doctorViews.filter((d) => d.is_active).length
@@ -33,6 +35,8 @@ export default function Dashboard() {
     const fillPrev = fillRate(db.time_slots, addDays(t, -7), addDays(t, -1))
     return {
       today, todayTrend: pctChange(today, lastWeek), pending: pending.length, pendingTrend: pctChange(createdIn(-7, 0), createdIn(-14, -7)),
+      confirmedTrend: pctChange(thisWeek.filter(a => a.status === 'confirmed').length, previousWeek.filter(a => a.status === 'confirmed').length),
+      cancelNoShowTrend: pctChange(thisWeek.filter(a => ['cancelled', 'no_show'].includes(a.status)).length, previousWeek.filter(a => ['cancelled', 'no_show'].includes(a.status)).length),
       active, activeDelta: active - activeBefore, patients: patients.length, patientsTrend: pctChange(patients.length, patientsBefore),
       cancel: cancel(cur), cancelDelta: (cancel(cur) - cancel(prev)) * 100, noshow: noshow(cur), noshowDelta: (noshow(cur) - noshow(prev)) * 100,
       fill: fillNext, fillDelta: (fillNext.rate - fillPrev.rate) * 100, rev: revenue(cur), revTrend: pctChange(revenue(cur), revenue(prev)),
@@ -56,7 +60,7 @@ export default function Dashboard() {
           icon={<CalendarDays className="size-4" />}
           accent="primary"
           trend={{ delta: k.todayTrend, unit: '%' }}
-          trendLabel="so với hôm qua"
+          trendLabel="so với cùng thứ tuần trước"
         />
         <KpiCard
           loading={L}
@@ -74,7 +78,7 @@ export default function Dashboard() {
           value={fmtNum(appts.filter((a) => a.status === 'confirmed').length)}
           icon={<Check className="size-4" />}
           accent="accent"
-          trend={{ delta: 8, unit: '%' }}
+          trend={{ delta: k.confirmedTrend, unit: '%' }}
           trendLabel="so với tuần trước"
         />
         <KpiCard
@@ -84,7 +88,7 @@ export default function Dashboard() {
           icon={<X className="size-4" />}
           accent="red"
           goodWhenUp={false}
-          trend={{ delta: -2, unit: '' }}
+          trend={{ delta: k.cancelNoShowTrend, unit: '%' }}
           trendLabel="so với tuần trước"
         />
       </div>

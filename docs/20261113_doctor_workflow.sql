@@ -64,6 +64,13 @@ begin
       raise exception 'Không có quyền tạo lịch hẹn này.' using errcode='42501';
     end if;
     select * into slot from public.time_slots where id=new.slot_id;
+    if not exists (
+      select 1 from public.doctors d
+      join public.profiles p on p.id=d.profile_id
+      where d.id=new.doctor_id and d.is_active and p.role='doctor'
+    ) then
+      raise exception 'Bác sĩ hiện không nhận lịch hẹn mới.' using errcode='22023';
+    end if;
     if (slot.slot_date+slot.start_time) at time zone 'Asia/Ho_Chi_Minh' <= now() then
       raise exception 'Không thể đặt khung giờ đã qua.' using errcode='22023';
     end if;

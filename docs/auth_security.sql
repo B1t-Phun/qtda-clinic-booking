@@ -167,25 +167,31 @@ begin
   if not found then raise exception 'Account not found' using errcode = '22023'; end if;
   if p_role is null then raise exception 'Role is required' using errcode = '22023'; end if;
   if target.role = p_role then return; end if;
+  if p_role in ('doctor', 'admin') and not exists(select 1 from auth.users where id = p_profile_id) then
+    raise exception 'An authenticated account is required for doctor or admin roles' using errcode = '22023';
+  end if;
   select * into linked_doctor from public.doctors where profile_id = p_profile_id;
   if linked_doctor.id is not null and p_role <> 'doctor' and
      exists(select 1 from public.appointments where doctor_id = linked_doctor.id) then
-    raise exception 'Doctor has appointments; deactivate the doctor instead' using errcode = '22023';
+    raise exception 'Doctor has appointments; deactivate instead of changing the role' using errcode = '22023';
   end if;
-  if target.role = 'patient' and exists(select 1 from public.appointments where patient_id = p_profile_id) then
+  if target.role = 'patient' and p_role <> 'patient' and exists(select 1 from public.appointments where patient_id = p_profile_id) then
     raise exception 'Patient has appointments' using errcode = '22023';
   end if;
   if p_role = 'doctor' and linked_doctor.id is null then
     if p_specialty_id is null or p_room is null or length(trim(p_room)) not between 1 and 100 or
-       p_consultation_fee is null or p_consultation_fee < 0 then
+       p_consultation_fee is null or p_consultation_fee < 1000 or p_consultation_fee > 999999999999 or
+       not exists(select 1 from public.specialties where id = p_specialty_id) then
       raise exception 'Doctor details required' using errcode = '22023';
     end if;
-    insert into public.doctors(profile_id, specialty_id, room, consultation_fee, is_active)
-      values(p_profile_id, p_specialty_id, trim(p_room), p_consultation_fee, true);
+    insert into public.doctors(profile_id, specialty_id, room, years_experience, consultation_fee, is_active)
+      values(p_profile_id, p_specialty_id, trim(p_room), 0, p_consultation_fee, true);
   elsif p_role = 'doctor' then
     update public.doctors set is_active = true where id = linked_doctor.id;
   elsif p_role <> 'doctor' and linked_doctor.id is not null then
-    update public.doctors set is_active = false where id = linked_doctor.id;
+    -- No appointments reference this doctor (checked above), so remove the profile.
+    -- Associated time slots are removed by their ON DELETE CASCADE relationship.
+    delete from public.doctors where id = linked_doctor.id;
   end if;
   update public.profiles set role = p_role where id = p_profile_id;
 end $$;

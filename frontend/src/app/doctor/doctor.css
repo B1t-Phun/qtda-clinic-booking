@@ -26,22 +26,26 @@
 .doctor-app button:disabled, .doctor-app fieldset:disabled .btn { opacity: .52; cursor: not-allowed; }
 .doctor-app .doctor-sidebar {
   position: fixed; inset: 0 auto 0 0; z-index: 35; display: flex; flex-direction: column;
-  width: 240px; background: #fff; border-right: 1px solid var(--doctor-line); padding: 24px 14px 16px;
+  width: 240px; background: linear-gradient(180deg, #153e3a 0%, #102f31 100%); border-right: 1px solid #28534c; padding: 24px 14px 16px;
 }
-.doctor-app .doctor-brand { display: flex; align-items: center; gap: 11px; color: var(--doctor-dark); font-size: 23px; font-weight: 800; letter-spacing: -.6px; padding: 0 10px; }
+.doctor-app .doctor-brand { display: flex; align-items: center; gap: 11px; color: #f4fffc; font-size: 23px; font-weight: 800; letter-spacing: -.6px; padding: 0 10px; }
 .doctor-app .doctor-brand > span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--doctor-primary); color: #fff; }
-.doctor-app .doctor-brand small { display: block; font-size: 11px; font-weight: 500; letter-spacing: .3px; color: var(--doctor-muted); }
-.doctor-app .doctor-identity { display: flex; align-items: center; gap: 10px; padding: 17px 10px; margin: 23px 0 13px; background: #f4f8f5; border-radius: 12px; }
+.doctor-app .doctor-brand small { display: block; font-size: 11px; font-weight: 500; letter-spacing: .3px; color: #a9c8bf; }
+.doctor-app .doctor-identity { display: flex; align-items: center; gap: 10px; padding: 17px 10px; margin: 23px 0 13px; background: rgb(255 255 255 / 8%); border: 1px solid rgb(210 245 235 / 12%); border-radius: 12px; }
 .doctor-app .doctor-identity div { min-width: 0; }
 .doctor-app .doctor-identity strong, .doctor-app .doctor-identity small { display: block; overflow-wrap: anywhere; }
-.doctor-app .doctor-identity small { color: var(--doctor-muted); font-size: 12px; }
+.doctor-app .doctor-identity strong { color: #f4fffc; }
+.doctor-app .doctor-identity small { color: #afc9c1; font-size: 12px; }
 .doctor-app .doctor-sidebar nav { display: grid; gap: 5px; overflow-y: auto; }
-.doctor-app .doctor-sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; color: #526c63; font-weight: 550; }
-.doctor-app .doctor-sidebar nav a:hover, .doctor-app .sidebar-footer a:hover, .doctor-app .sidebar-footer button:hover { background: #f1f6f3; }
-.doctor-app .doctor-sidebar nav a[aria-current=page] { background: var(--doctor-soft); color: #07685f; font-weight: 700; }
-.doctor-app .doctor-sidebar nav b, .doctor-app .count { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: #dceee5; color: #176852; margin-left: auto; }
-.doctor-app .sidebar-footer { margin-top: auto; padding-top: 22px; display: grid; gap: 5px; }
-.doctor-app .sidebar-footer a, .doctor-app .sidebar-footer button { border: 0; background: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #526c63; text-align: left; }
+.doctor-app .doctor-sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; color: #c0d8d0; font-weight: 550; transition: background .15s, color .15s, transform .15s; }
+.doctor-app .doctor-sidebar nav a:hover, .doctor-app .sidebar-footer a:hover, .doctor-app .sidebar-footer button:hover { background: rgb(255 255 255 / 9%); color: #fff; }
+.doctor-app .doctor-sidebar nav a:focus-visible, .doctor-app .sidebar-footer a:focus-visible, .doctor-app .sidebar-footer button:focus-visible { outline: 2px solid #8de4d1; outline-offset: 2px; }
+.doctor-app .doctor-sidebar nav a[aria-current=page] { background: linear-gradient(110deg, #0d9585, #087f72); color: #fff; font-weight: 700; box-shadow: 0 5px 16px rgb(3 20 19 / 20%); }
+.doctor-app .doctor-sidebar nav a[aria-current=page] svg { color: #d9fff6; }
+.doctor-app .doctor-sidebar nav b, .doctor-app .count { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: #d8fff2; color: #075c51; margin-left: auto; }
+.doctor-app .sidebar-footer { margin-top: auto; padding-top: 22px; display: grid; gap: 5px; border-top: 1px solid rgb(210 245 235 / 14%); }
+.doctor-app .sidebar-footer a, .doctor-app .sidebar-footer button { border: 0; background: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #c0d8d0; text-align: left; }
+.doctor-app .doctor-sidebar .close-menu { color: #d9eee8; }
 .doctor-app .doctor-workspace { margin-left: 240px; }
 .doctor-app .doctor-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; min-height: 72px; padding: 12px 28px; border-bottom: 1px solid var(--doctor-line); background: #fff; }
 .doctor-app .header-search { display: flex; align-items: center; gap: 9px; max-width: 470px; flex: 1; color: var(--doctor-muted); }

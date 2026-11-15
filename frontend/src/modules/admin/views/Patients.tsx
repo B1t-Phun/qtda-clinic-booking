@@ -87,23 +87,39 @@ export default function PatientsPage() {
 }
 
 export function PatientForm({ patient, onClose }: { patient: Profile | null; onClose: () => void }) {
-  const { saveProfile, emailTaken } = useStore()
+  const { saveProfile, createPatientRecord, emailTaken } = useStore()
   const toast = useToast()
   const [f, setF] = useState({ full_name: patient?.full_name ?? '', email: patient?.email ?? '', phone: patient?.phone ?? '', gender: patient?.gender ?? '', date_of_birth: patient?.date_of_birth ?? '', address: patient?.address ?? '', avatar_url: patient?.avatar_url ?? '' })
   const [touched, setTouched] = useState(false)
   const e = {
     full_name: f.full_name.trim().length < 2 ? 'Nhập họ và tên' : '',
-    email: !/^\S+@\S+\.\S+$/.test(f.email) ? 'Email không hợp lệ' : emailTaken(f.email, patient?.id) ? 'Email đã được sử dụng' : '',
+    email: f.email.trim() && !/^\S+@\S+\.\S+$/.test(f.email) ? 'Email không hợp lệ' : f.email.trim() && emailTaken(f.email, patient?.id) ? 'Email đã được sử dụng' : '',
     phone: !/^0\d{9}$/.test(f.phone) ? 'Số điện thoại gồm 10 số, bắt đầu bằng 0' : '',
     date_of_birth: f.date_of_birth && f.date_of_birth > todayISO() ? 'Ngày sinh không hợp lệ' : '',
     avatar_url: f.avatar_url && !/^https?:\/\//.test(f.avatar_url) ? 'URL phải bắt đầu bằng http(s)://' : '',
   }
   const err = (k: keyof typeof e) => (touched ? e[k] : '')
   const set = (k: keyof typeof f) => (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: ev.target.value })
-  const submit = () => {
+  const submit = async () => {
     setTouched(true)
     if (Object.values(e).some(Boolean)) return
-    const p = saveProfile({ id: patient?.id, full_name: f.full_name.trim(), email: f.email.trim(), phone: f.phone, gender: (f.gender || null) as Gender | null, date_of_birth: f.date_of_birth || null, address: f.address.trim() || null, avatar_url: f.avatar_url || null })
+    let p: Profile
+    try {
+      const details = {
+        full_name: f.full_name.trim(), email: f.email.trim(), phone: f.phone,
+        gender: (f.gender || null) as Gender | null, date_of_birth: f.date_of_birth || null,
+        address: f.address.trim() || null, avatar_url: f.avatar_url || null,
+      }
+      p = patient
+        ? saveProfile({ ...details, id: patient.id })
+        : await createPatientRecord(details)
+    } catch (error) {
+      const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : 'Không thể lưu hồ sơ bệnh nhân'
+      toast({ tone: 'error', title: message })
+      return
+    }
     toast({ tone: 'success', title: patient ? 'Đã cập nhật hồ sơ' : 'Đã thêm bệnh nhân', description: p.full_name })
     onClose()
     if (!patient) navigate(`/patients/${p.id}`)
@@ -111,9 +127,10 @@ export function PatientForm({ patient, onClose }: { patient: Profile | null; onC
   return (
     <Modal open onClose={onClose} fullscreenMobile title={patient ? 'Chỉnh sửa bệnh nhân' : 'Thêm bệnh nhân'} footer={<><Button variant="secondary" onClick={onClose}>Hủy bỏ</Button><Button onClick={submit}>{patient ? 'Lưu thay đổi' : 'Thêm bệnh nhân'}</Button></>}>
       <div className="grid gap-4 sm:grid-cols-2">
+        {!patient && <p className="text-xs text-muted sm:col-span-2">Tạo hồ sơ bệnh nhân đến khám trực tiếp; không cần tài khoản web. Email là tùy chọn.</p>}
         <Field label="Họ và tên" required error={err('full_name')} className="sm:col-span-2"><Input value={f.full_name} onChange={set('full_name')} invalid={!!err('full_name')} /></Field>
         <Field label="Số điện thoại" required error={err('phone')}><Input inputMode="tel" value={f.phone} onChange={set('phone')} invalid={!!err('phone')} /></Field>
-        <Field label="Email" required error={err('email')}><Input type="email" value={f.email} onChange={set('email')} invalid={!!err('email')} /></Field>
+        <Field label="Email (tùy chọn)" error={err('email')}><Input type="email" value={f.email} onChange={set('email')} readOnly={!!patient} aria-readonly={!!patient} invalid={!!err('email')} /></Field>
         <Field label="Giới tính"><Select value={f.gender} onChange={set('gender')}><option value="">Chọn…</option>{(['male', 'female', 'other'] as Gender[]).map((g) => <option key={g} value={g}>{GENDER_LABEL[g]}</option>)}</Select></Field>
         <Field label="Ngày sinh" error={err('date_of_birth')}><Input type="date" max={todayISO()} value={f.date_of_birth} onChange={set('date_of_birth')} /></Field>
         <Field label="Địa chỉ" className="sm:col-span-2"><Textarea rows={2} value={f.address} onChange={set('address')} /></Field>

@@ -1,20 +1,19 @@
 'use client';
 import Link from 'next/link'
 import { useState } from 'react'
-import { KeyRound, LogOut, RotateCcw } from 'lucide-react'
+import { KeyRound, LogOut } from 'lucide-react'
 import { useStore } from '@/modules/admin/store/store'
 import type { Gender } from '@/modules/admin/store/types'
 import { fmtDateTime, GENDER_LABEL, todayISO } from '@/lib/format'
 import { Avatar, Button, Card, PageHeader } from '@/components/ui/core'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
-import { ConfirmDialog, useToast } from '@/components/ui/overlay'
+import { useToast } from '@/components/ui/overlay'
 
 export default function ProfilePage() {
-  const { me, saveProfile, emailTaken, logout, resetData } = useStore()
+  const { me, saveProfile, emailTaken, logout } = useStore()
   const toast = useToast()
   const [f, setF] = useState({ full_name: me.full_name, email: me.email, phone: me.phone ?? '', gender: me.gender ?? '', date_of_birth: me.date_of_birth ?? '', address: me.address ?? '', avatar_url: me.avatar_url ?? '' })
   const [touched, setTouched] = useState(false)
-  const [reset, setReset] = useState(false)
   const e = {
     full_name: f.full_name.trim().length < 2 ? 'Nhập họ và tên' : '',
     email: !/^\S+@\S+\.\S+$/.test(f.email) ? 'Email không hợp lệ' : emailTaken(f.email, me.id) ? 'Email đã được sử dụng' : '',
@@ -35,7 +34,7 @@ export default function ProfilePage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Họ và tên" required error={err('full_name')}><Input value={f.full_name} onChange={set('full_name')} invalid={!!err('full_name')} /></Field>
-            <Field label="Email" required error={err('email')}><Input type="email" value={f.email} onChange={set('email')} invalid={!!err('email')} /></Field>
+            <Field label="Email" required error={err('email')}><Input type="email" value={f.email} readOnly aria-readonly="true" invalid={!!err('email')} /></Field>
             <Field label="Số điện thoại" error={err('phone')}><Input value={f.phone} onChange={set('phone')} invalid={!!err('phone')} /></Field>
             <Field label="Giới tính"><Select value={f.gender} onChange={set('gender')}><option value="">Chọn…</option>{(['male', 'female', 'other'] as Gender[]).map((g) => <option key={g} value={g}>{GENDER_LABEL[g]}</option>)}</Select></Field>
             <Field label="Ngày sinh"><Input type="date" max={todayISO()} value={f.date_of_birth} onChange={set('date_of_birth')} /></Field>
@@ -57,14 +56,8 @@ export default function ProfilePage() {
             <p className="mt-3 text-sm text-muted">Quản lý mật khẩu và Authenticator trong phần bảo mật tài khoản.</p>
             <Link href="/account/security" className="mt-4 inline-block text-sm font-semibold text-blue-600">Mở cài đặt bảo mật</Link>
           </Card>
-          <Card className="p-5">
-            <h2 className="font-semibold">Dữ liệu mẫu</h2>
-            <p className="mt-1 text-13 text-muted">Khôi phục dữ liệu mẫu ban đầu của bản prototype.</p>
-            <Button variant="secondary" className="mt-3" icon={<RotateCcw className="size-4" />} onClick={() => setReset(true)}>Khôi phục dữ liệu mẫu</Button>
-          </Card>
         </div>
       </div>
-      <ConfirmDialog open={reset} onClose={() => setReset(false)} tone="danger" title="Khôi phục dữ liệu mẫu" confirmLabel="Khôi phục" message="Mọi thay đổi bạn đã thực hiện sẽ bị xóa." onConfirm={() => { resetData(); setReset(false); toast({ tone: 'success', title: 'Đã khôi phục dữ liệu mẫu' }) }} />
     </div>
   )
 }
