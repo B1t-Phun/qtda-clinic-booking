@@ -32,8 +32,14 @@ Biến môi trường của terminal/hosting được ưu tiên hơn file.
 
 ```powershell
 npm --prefix frontend ci
-npm --prefix frontend run dev
+npm run dev
 ```
+
+Chạy `npm run dev` tại thư mục gốc `qtda-clinic-booking` để mở frontend.
+Nếu cần API Express, mở terminal thứ hai tại thư mục gốc và chạy `npm run dev:backend`
+(cài thư viện lần đầu bằng `npm --prefix backend ci`).
+Nếu terminal báo đã có Next.js chạy, dùng lại địa chỉ đang hiển thị hoặc nhấn `Ctrl+C`
+trong terminal cũ trước khi khởi động lại.
 
 Mở http://cliniccare.localhost:3000/login (trình duyệt Chrome/Edge ánh xạ tên miền .localhost về máy này).
 hCaptcha không hỗ trợ ổn định localhost/127.0.0.1; dùng đúng hostname khớp APP_URL.
@@ -46,6 +52,24 @@ Ghi nhớ 7 ngày chỉ dành cho bệnh nhân/bác sĩ; admin phải đăng nh�
 
 Đăng nhập /login; đăng ký bệnh nhân /register; bảo mật và MFA /account/security.
 Vai trò được kiểm tra phía server: admin → /admin, doctor → /doctor, patient → /client.
+
+## Triển khai frontend lên Vercel
+
+Trong Settings → Build and Deployment, đặt Root Directory là `frontend` và bật
+Include files outside the root directory in the Build Step để các lệnh setup
+đọc được `scripts/` ở gốc. File `frontend/vercel.json` chọn framework Next.js,
+cài bằng `npm ci`, build bằng `npm run build` và dùng output `.next`.
+
+Khai báo `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` và
+`APP_URL` trong Environment Variables cho Production. `APP_URL` là origin HTTPS
+của website đã triển khai. Nếu dùng hCaptcha, thêm `NEXT_PUBLIC_HCAPTCHA_SITE_KEY`
+và cấu hình hostname tương ứng tại hCaptcha/Supabase.
+
+Sau khi đẩy cấu hình lên GitHub, triển khai commit mới nhất trên nhánh production.
+Redeploy một commit cũ không bổ sung được file cấu hình mới. Trong Deployment
+Settings của bản vừa tạo, kiểm tra Framework Preset là Next.js và Root Directory
+là `frontend`. Resources cần có các trang và Functions của Next.js; việc log
+`next build` thành công chưa chứng minh Vercel đã xử lý output bằng framework Next.js.
 
 ## Quản trị cấu hình Supabase
 
