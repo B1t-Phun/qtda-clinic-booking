@@ -2,7 +2,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 
 export class AuthHttpError extends Error {
-  constructor(public status: number, message: string, public retryAfter?: number) { super(message); }
+  constructor(public status: number, message: string, public retryAfter?: number, public code?: string) { super(message); }
 }
 
 export function json(body: unknown, status = 200) {
@@ -11,26 +11,48 @@ export function json(body: unknown, status = 200) {
 
 export function errorResponse(error: unknown) {
   if (error instanceof AuthHttpError) {
-    const response = json({ message: error.message }, error.status);
+    const response = json({ message: error.message, ...(error.code ? { code: error.code } : {}) }, error.status);
     if (error.status === 429) response.headers.set('Retry-After', String(error.retryAfter || 60));
     return response;
   }
   return json({ message: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.' }, 503);
 }
 
+function isLoopback(url: URL) {
+  return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
+    (['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.hostname.endsWith('.localhost'));
+}
+
+function sameLocalOrigin(left: URL, right: URL) {
+  return isLoopback(left) && isLoopback(right) && left.protocol === right.protocol && left.port === right.port;
+}
+
 export function appOrigin(request: Request) {
   const configured = process.env.APP_URL;
   if (!configured && process.env.NODE_ENV === 'production') throw new Error('APP_URL is required');
-  return new URL(configured || request.url).origin;
+  const expected = new URL(configured || request.url);
+  // In development, retain the browser local alias after it passes the loopback check.
+  if (process.env.NODE_ENV === 'development' && isLoopback(expected)) {
+    const browserOrigin = request.headers.get('origin');
+    if (browserOrigin) {
+      try {
+        const browser = new URL(browserOrigin);
+        if (sameLocalOrigin(browser, expected)) return browser.origin;
+      } catch { /* Keep configured origin. */ }
+    }
+  }
+  return expected.origin;
 }
 
 export function assertSameOrigin(request: Request) {
-  if (request.headers.get('origin') !== appOrigin(request) ||
-      request.headers.get('sec-fetch-site') === 'cross-site') {
-    throw new AuthHttpError(403, 'Yêu cầu không hợp lệ.');
+  const origin = request.headers.get('origin');
+  let accepted = origin === appOrigin(request);
+  if (!accepted && process.env.NODE_ENV === 'development' && origin) {
+    try { accepted = sameLocalOrigin(new URL(origin), new URL(process.env.APP_URL || request.url)); }
+    catch { accepted = false; }
   }
+  if (!accepted || request.headers.get('sec-fetch-site') === 'cross-site') throw new AuthHttpError(403, 'Địa chỉ truy cập không khớp cấu hình ứng dụng. Tải lại trang từ địa chỉ đang chạy rồi thử lại.', undefined, 'origin_mismatch');
 }
-
 export async function readBody(request: Request, keys: readonly string[], maxBytes = 8192) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
     throw new AuthHttpError(415, 'Chỉ chấp nhận dữ liệu JSON.');

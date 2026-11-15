@@ -5,7 +5,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Appointment, DoctorAction, DoctorSnapshot, NewSlot, ProfessionalInput, Profile, ProfileInput } from '../data';
 
 class DoctorRequestError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public code?: string) { super(message); }
+}
+export function doctorSessionRedirect(status: number, code?: string) {
+  if (status === 401) return '/login';
+  if (status === 403 && code === 'mfa_required') return '/auth/mfa';
+  return null;
 }
 export async function doctorRequest<T>(action: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let response: Response;
@@ -20,7 +25,7 @@ export async function doctorRequest<T>(action: string, body?: unknown, signal?: 
     throw new Error('Không thể kết nối. Kiểm tra mạng rồi thử lại; thay đổi chưa được xác nhận lưu.');
   }
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new DoctorRequestError(data?.message || 'Không thể tải dữ liệu khám bệnh.', response.status);
+  if (!response.ok) throw new DoctorRequestError(data?.message || 'Không thể tải dữ liệu khám bệnh.', response.status, typeof data?.code === 'string' ? data.code : undefined);
   if (!data || typeof data !== 'object') throw new Error('Dữ liệu phản hồi không hợp lệ. Vui lòng tải lại.');
   return data as T;
 }
@@ -52,6 +57,7 @@ interface DoctorStore extends DoctorSnapshot {
   addSlots: (slots: NewSlot[]) => Promise<boolean>;
   deleteSlot: (id: string) => Promise<boolean>;
   saveProfile: (profile: ProfileInput) => Promise<boolean>;
+  syncProfile: (profile: Profile) => void;
   saveProfessional: (doctor: ProfessionalInput) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -98,9 +104,9 @@ export function DoctorProvider({ initialSnapshot, children }: { initialSnapshot:
       return true;
     } catch (caught) {
       if (controller.signal.aborted || !alive.current) return false;
-      if (caught instanceof DoctorRequestError && [401, 403].includes(caught.status)) {
-        setSelectedId(null);
-        window.location.replace(caught.message.includes('MFA') ? '/auth/mfa' : '/login');
+      if (caught instanceof DoctorRequestError) {
+        const redirect = doctorSessionRedirect(caught.status, caught.code);
+        if (redirect) { setSelectedId(null); window.location.replace(redirect); }
       }
       setError(caught instanceof Error ? caught.message : 'Không tải được dữ liệu.');
       return false;
@@ -141,8 +147,9 @@ export function DoctorProvider({ initialSnapshot, children }: { initialSnapshot:
         const message = caught instanceof Error ? caught.message : 'Không thực hiện được thao tác.';
         toast(message, true);
         conflict = caught instanceof DoctorRequestError && caught.status === 409;
-        if (caught instanceof DoctorRequestError && [401, 403].includes(caught.status)) {
-          setSelectedId(null); window.location.replace(message.includes('MFA') ? '/auth/mfa' : '/login');
+        if (caught instanceof DoctorRequestError) {
+          const redirect = doctorSessionRedirect(caught.status, caught.code);
+          if (redirect) { setSelectedId(null); window.location.replace(redirect); }
         }
       }
       return false;
@@ -200,7 +207,7 @@ export function DoctorProvider({ initialSnapshot, children }: { initialSnapshot:
   return <DoctorContext.Provider value={{ ...snapshot, now, pending, refreshing, error, toasts, toast, refresh,
     selectedAppointment: snapshot.appointments.find(a => a.id === selectedId) || null,
     setSelectedAppointment: appointment => setSelectedId(appointment?.id || null),
-    act, addSlots, deleteSlot, saveProfile, saveProfessional, logout: () => logout((message: string) => toast(message, true)),
+    act, addSlots, deleteSlot, saveProfile, saveProfessional, syncProfile: profile => setSnapshot(previous => ({ ...previous, profile: profileValues(profile) })), logout: () => logout((message: string) => toast(message, true)),
   }}>{children}</DoctorContext.Provider>;
 }
 export function useDoctorStore() {

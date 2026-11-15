@@ -10,6 +10,7 @@
     "supabase:configure": "node scripts/configure-supabase.mjs",
     "supabase:migrate:auth": "node scripts/migrate-auth.mjs",
     "test:doctor:api": "node scripts/test-doctor-api.mjs",
-    "test:doctor:db": "node scripts/test-doctor-db.mjs"
+    "test:doctor:db": "node scripts/test-doctor-db.mjs",
+    "test:profile:db": "node scripts/test-profile-db.mjs"
   }
 }

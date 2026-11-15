@@ -7,6 +7,7 @@ Auth và dữ liệu dùng Supabase SDK/API; bảng và RLS cấu hình trong Su
 - [Migration auth cho project hiện tại](docs/auth_security.sql)
 - [Mẫu email xác thực](docs/supabase-email-templates/)
 - [Backend API](backend/README.md)
+- [Hồ sơ cá nhân và cấu hình tải ảnh](docs/PROFILE_SETUP.md)
 
 ## Cấu hình trên máy mới
 

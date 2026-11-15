@@ -17,6 +17,7 @@ import {
   Phone,
   Clock,
   MapPin,
+  UserRound,
 } from 'lucide-react';
 import { ToastProvider } from '@/components/ui/overlay';
 import { Button, Avatar } from '@/components/ui/core';
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/client/specialties', label: 'Chuyên khoa', icon: Layers },
   { href: '/client/booking', label: 'Đặt lịch', icon: CalendarPlus },
   { href: '/client/appointments', label: 'Lịch hẹn', icon: ClipboardList },
+  { href: '/client/profile', label: 'Hồ sơ của tôi', icon: UserRound },
 ];
 
 function ClientHeader() {
@@ -42,7 +44,7 @@ function ClientHeader() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
-  const currentUser = { id: user.id, email: user.email, full_name: user.fullName };
+  const currentUser = { id: user.id, email: user.email, full_name: user.fullName, avatar_url: user.avatarUrl };
   const loadingUser = false;
   const handleLogout = async () => {
     setMobileMenuOpen(false);
@@ -74,7 +76,7 @@ function ClientHeader() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -102,8 +104,8 @@ function ClientHeader() {
             <div className="size-9 rounded-full bg-slate-100 animate-pulse" />
           ) : currentUser ? (
             <div className="flex items-center gap-3 pl-2 border-l border-line">
-              <div className="flex items-center gap-2">
-                <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={32} />
+              <Link href="/client/profile" aria-label="Xem hồ sơ của tôi" className="flex items-center gap-2">
+                <Avatar name={currentUser.full_name || 'Bệnh nhân'} url={currentUser.avatar_url} size={32} />
                 <div className="text-left hidden lg:block">
                   <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate">
                     {currentUser.full_name}
@@ -112,7 +114,7 @@ function ClientHeader() {
                     {currentUser.email}
                   </p>
                 </div>
-              </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"
@@ -141,7 +143,7 @@ function ClientHeader() {
         </div>
 
         {/* Mobile menu hamburger button */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 xl:hidden">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -155,7 +157,7 @@ function ClientHeader() {
 
       {/* Mobile navigation drawer / dropdown */}
       {mobileMenuOpen && (
-        <div className="border-b border-line bg-white px-4 pt-2 pb-5 md:hidden animate-fade-in">
+        <div className="border-b border-line bg-white px-4 pt-2 pb-5 xl:hidden animate-fade-in">
           <nav className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href);
@@ -182,13 +184,13 @@ function ClientHeader() {
           <div className="mt-4 pt-4 border-t border-line">
             {currentUser ? (
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={36} />
+                <Link href="/client/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5">
+                  <Avatar name={currentUser.full_name || 'Bệnh nhân'} url={currentUser.avatar_url} size={36} />
                   <div>
                     <p className="text-sm font-semibold text-ink">{currentUser.full_name}</p>
                     <p className="text-xs text-muted truncate max-w-[200px]">{currentUser.email}</p>
                   </div>
-                </div>
+                </Link>
                 <Button variant="ghost" size="sm" icon={<LogOut className="size-4 text-red-500" />} onClick={handleLogout}>
                   Thoát
                 </Button>

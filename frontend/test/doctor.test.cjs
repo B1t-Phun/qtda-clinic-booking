@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('../node_modules/typescript');
 function load(relative,imports={},globals={}){
-  const code=ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'..',relative),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  const code=ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'..',relative),'utf8'),{fileName:relative,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
   const loadedModule={exports:{}};
   vm.runInNewContext(code,{module:loadedModule,exports:loadedModule.exports,require:name=>{if(name==='server-only')return {};if(name in imports)return imports[name];throw new Error('Unexpected import '+name);},URL,Response,Request,Headers,Buffer,process,AbortSignal,...globals});
   return loadedModule.exports;
@@ -184,4 +184,69 @@ test('history lookup refuses a foreign appointment before querying its audit eve
   assert.equal(response.status, 404);
   assert.equal(calls.some(call => call[0] === 'from' && call[1] === 'appointment_events'), false);
   assert.ok(calls.some(call => call[1] === 'doctor_id' && call[2] === 'doctor-1'));
+});
+
+test('all Doctor mutation forms accept a matching local browser origin with the configured .localhost site', async () => {
+  const previous = { APP_URL: process.env.APP_URL, NODE_ENV: process.env.NODE_ENV };
+  process.env.APP_URL = 'http://cliniccare.localhost:3000';
+  process.env.NODE_ENV = 'development';
+  try {
+    for (const origin of ['http://localhost:3000', 'http://cliniccare.localhost:3000', 'http://127.0.0.1:3000']) {
+      const calls = [];
+      function query(table) {
+        const q = {
+          select() { return q; }, eq(key, value) { calls.push(['eq', table, key, value]); return q; },
+          update(value) { calls.push(['update', table, value]); return q; },
+          insert(value) { calls.push(['insert', table, value]); return q; },
+          delete() { calls.push(['delete', table]); return q; },
+          single: async () => ({ data: table === 'doctors' ? { id: 'doctor-1', profile_id: 'user-1' } : { id: 'user-1' }, error: null }),
+          then(resolve) { return Promise.resolve({ data: [{ id: 1 }], error: null }).then(resolve); },
+        }; return q;
+      }
+      const client = { from: query, rpc: async (name, payload) => { calls.push(['rpc', name, payload]); return { data: { id: 1, status: 'confirmed' }, error: null }; } };
+      const route = load('src/app/api/doctor/[action]/route.ts', {
+        '@/lib/auth/server': { createServerSupabase: async () => client, readIdentity: async () => ({ user: { id: 'user-1', role: 'doctor' }, needsMfa: false }) },
+        '@/lib/auth/http': http, '@/lib/doctor/snapshot': snapshot,
+      });
+      const future = new Date(); future.setUTCFullYear(future.getUTCFullYear() + 1);
+      const cases = [
+        ['appointment', { ...action, action: 'confirm' }],
+        ['appointment', { ...action, action: 'cancel', reason: 'Patient requested cancellation' }],
+        ['appointment', { ...action, action: 'save_note', note: 'A real clinical conclusion' }],
+        ['slots', { slots: [{ slot_date: future.toISOString().slice(0, 10), start_time: '08:00', end_time: '08:30' }] }],
+        ['delete-slot', { slotId: '1' }],
+        ['profile', { full_name: 'Doctor Test', phone: '', date_of_birth: '', gender: '', address: '', avatar_url: '' }],
+        ['professional', { bio: 'Doctor introduction', room: 'P1', consultation_fee: 100000 }],
+      ];
+      for (const [endpoint, body] of cases) {
+        const response = await route.POST(new Request(origin + '/api/doctor/' + endpoint, {
+          method: 'POST', headers: { origin, host: new URL(origin).host, 'sec-fetch-site': 'same-origin', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }), { params: Promise.resolve({ action: endpoint }) });
+        assert.equal(response.status, 200, origin + ' / ' + endpoint + ': ' + JSON.stringify(await response.json()));
+      }
+      assert.ok(calls.some(call => call[0] === 'rpc' && call[2].p_action === 'cancel'));
+      assert.ok(calls.some(call => call[0] === 'eq' && call[1] === 'profiles' && call[2] === 'id' && call[3] === 'user-1'));
+      assert.ok(calls.some(call => call[0] === 'eq' && call[1] === 'doctors' && call[2] === 'profile_id' && call[3] === 'user-1'));
+    }
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
+test('Doctor client retains origin/permission errors and redirects only for expired sessions or explicit MFA requirements', async () => {
+  const React = require('../node_modules/react');
+  for (const [status, code, destination] of [
+    [403, 'origin_mismatch', null], [403, undefined, null], [401, undefined, '/login'], [403, 'mfa_required', '/auth/mfa'],
+  ]) {
+    const store = load('src/modules/doctor/store/store.tsx', {
+      react: React, 'react/jsx-runtime': require('../node_modules/react/jsx-runtime'), '@/lib/auth/context': {},
+    }, { fetch: async () => Response.json({ message: 'A request error', ...(code ? { code } : {}) }, { status }) });
+    await assert.rejects(() => store.doctorRequest('appointment', {}), error => {
+      assert.equal(error.code, code);
+      assert.equal(store.doctorSessionRedirect(error.status, error.code), destination);
+      return true;
+    });
+  }
 });

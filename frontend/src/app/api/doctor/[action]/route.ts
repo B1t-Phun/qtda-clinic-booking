@@ -9,7 +9,7 @@ const actions: DoctorAction[] = ['confirm', 'check_in', 'start', 'complete', 'ca
 const slotFields = 'id,doctor_id,slot_date,start_time,end_time,is_booked,created_at';
 async function identity(client: Client) {
   const state = await readIdentity(client);
-  if (state.needsMfa) throw new AuthHttpError(403, 'Vui lòng hoàn tất MFA.');
+  if (state.needsMfa) throw new AuthHttpError(403, 'Vui lòng hoàn tất MFA.', undefined, 'mfa_required');
   if (!state.user) throw new AuthHttpError(401, 'Vui lòng đăng nhập lại.');
   if (state.user.role !== 'doctor') throw new AuthHttpError(403, 'Chức năng chỉ dành cho bác sĩ.');
   const { data, error } = await client.from('doctors').select('*').eq('profile_id', state.user.id).eq('is_active', true).single();

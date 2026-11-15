@@ -39,7 +39,8 @@ export function AuthProvider({ user, children }: { user: AuthUser; children: Rea
     window.addEventListener('pageshow', refresh);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('pageshow', refresh); channel?.close(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    window.addEventListener('cliniccare-profile-updated', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('pageshow', refresh); channel?.close(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('cliniccare-profile-updated', refresh); };
   }, [user.id, user.role, pathname]);
   const required = roleForPath(pathname);
   if (required && required !== currentUser.role) return <p className="p-8 text-center">Đang kiểm tra quyền truy cập…</p>;
