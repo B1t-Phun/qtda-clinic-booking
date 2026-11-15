@@ -41,18 +41,6 @@ export interface TimeSlot {
   is_booked: boolean;
   created_at: string;
 }
-export type DoctorAction = 'confirm' | 'check_in' | 'start' | 'complete' | 'cancel' | 'no_show' | 'save_note' | 'reschedule';
-
-export interface DoctorSnapshot {
-  profile: Profile;
-  specialty: Specialty;
-  doctor: Doctor;
-  patients: Profile[];
-  appointments: Appointment[];
-  slots: TimeSlot[];
-  events: any[];
-}
-
 export type NewSlot = Pick<TimeSlot, 'slot_date' | 'start_time' | 'end_time'>;
 export interface Appointment {
   id: string;
