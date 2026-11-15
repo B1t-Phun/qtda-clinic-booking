@@ -13,6 +13,14 @@ import { ApptHistory } from './appointments/ApptHistory'
 import { SlotBoard } from './Slots'
 import { rate, revenue, statusCounts } from '@/lib/analytics'
 
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+  return fallback
+}
+
 function useUpcoming() {
   const { appts } = useStore()
   const t = todayISO()
@@ -29,17 +37,27 @@ function useToggleActive() {
   const [pending, setPending] = useState<DoctorView | null>(null)
   const toggle = (d: DoctorView, v: boolean) => {
     if (!v) return setPending(d)
-    setDoctorActive(d.id, true)
-    toast({ tone: 'success', title: `Đã kích hoạt BS. ${d.profile.full_name}` })
+    void setDoctorActive(d.id, true).then(() => {
+      toast({ tone: 'success', title: `Đã kích hoạt BS. ${d.profile.full_name}` })
+    }).catch((error: unknown) => {
+      toast({ tone: 'error', title: errorMessage(error, 'Không thể cập nhật bác sĩ') })
+    })
   }
   const dialog = (
     <ConfirmDialog open={!!pending} onClose={() => setPending(null)} tone="danger" title="Ngừng hoạt động bác sĩ" confirmLabel="Ngừng hoạt động"
-      message={<>BS. <b className="text-ink">{pending?.profile.full_name}</b> sẽ không còn xuất hiện khi đặt lịch mới. Lịch hẹn hiện có vẫn được giữ nguyên.</>}
-      onConfirm={() => { setDoctorActive(pending!.id, false); toast({ tone: 'success', title: `Đã ngừng hoạt động BS. ${pending!.profile.full_name}` }); setPending(null) }} />
+      message={<>BS. <b className="text-ink">{pending?.profile.full_name}</b> sẽ không còn nhận lịch mới. Lịch hẹn hiện tại vẫn được giữ nguyên.</>}
+      onConfirm={async () => {
+        try {
+          await setDoctorActive(pending!.id, false)
+          toast({ tone: 'success', title: `Đã ngừng hoạt động BS. ${pending!.profile.full_name}` })
+          setPending(null)
+        } catch (error) {
+          toast({ tone: 'error', title: errorMessage(error, 'Không thể cập nhật bác sĩ') })
+        }
+      }} />
   )
   return { toggle, dialog }
 }
-
 export default function DoctorsPage() {
   const { doctorViews, db, loading, error, reload } = useStore()
   const upcoming = useUpcoming()
@@ -129,7 +147,7 @@ export function DoctorForm({ doctor, onClose }: { doctor: DoctorView | null; onC
   })
   const [touched, setTouched] = useState(false)
   const e = {
-    email: !/^\S+@\S+\.\S+$/.test(f.email) ? 'Email không hợp lệ' : emailTaken(f.email, doctor?.profile_id) ? 'Email đã được sử dụng' : '',
+    email: !/^\S+@\S+\.\S+$/.test(f.email) ? 'Email không hợp lệ' : emailTaken(f.email, doctor?.profile_id) && !( !doctor && db.profiles.some(p => (p.role === 'doctor' || p.role === 'patient') && p.email.toLowerCase() === f.email.trim().toLowerCase() && !db.doctors.some(d => d.profile_id === p.id))) ? 'Email đã được sử dụng' : '',
     full_name: f.full_name.trim().length < 2 ? 'Nhập họ và tên' : '',
     phone: f.phone && !/^0\d{9}$/.test(f.phone) ? 'Số điện thoại gồm 10 số, bắt đầu bằng 0' : '',
     avatar_url: f.avatar_url && !/^https?:\/\//.test(f.avatar_url) ? 'URL phải bắt đầu bằng http(s)://' : '',
@@ -140,14 +158,20 @@ export function DoctorForm({ doctor, onClose }: { doctor: DoctorView | null; onC
   }
   const err = (k: keyof typeof e) => (touched ? e[k] : '')
   const set = (k: keyof typeof f) => (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: ev.target.value })
-  const submit = () => {
+  const submit = async () => {
     setTouched(true)
     if (Object.values(e).some(Boolean)) return
-    const id = saveDoctor(
-      { email: f.email.trim(), full_name: f.full_name.trim(), phone: f.phone || null, avatar_url: f.avatar_url || null },
-      { specialty_id: f.specialty_id, room: f.room.trim(), years_experience: Number(f.years_experience), consultation_fee: Number(f.consultation_fee.replace(/\./g, '')), bio: f.bio.trim() || null, is_active: f.is_active },
-      doctor?.id,
-    )
+    let id: string
+    try {
+      id = await saveDoctor(
+        { email: f.email.trim(), full_name: f.full_name.trim(), phone: f.phone || null, avatar_url: f.avatar_url || null },
+        { specialty_id: f.specialty_id, room: f.room.trim(), years_experience: Number(f.years_experience), consultation_fee: Number(f.consultation_fee.replace(/\./g, '')), bio: f.bio.trim() || null, is_active: f.is_active },
+        doctor?.id,
+      )
+    } catch (error) {
+      toast({ tone: 'error', title: errorMessage(error, 'Không thể lưu hồ sơ bác sĩ') })
+      return
+    }
     toast({ tone: 'success', title: doctor ? 'Đã cập nhật bác sĩ' : 'Đã thêm bác sĩ', description: `BS. ${f.full_name.trim()}` })
     onClose()
     if (!doctor) navigate(`/doctors/${id}`)
@@ -157,9 +181,10 @@ export function DoctorForm({ doctor, onClose }: { doctor: DoctorView | null; onC
     <Modal open onClose={onClose} size="lg" fullscreenMobile title={doctor ? 'Chỉnh sửa bác sĩ' : 'Thêm bác sĩ'} footer={<><Button variant="secondary" onClick={onClose}>Hủy bỏ</Button><Button onClick={submit}>{doctor ? 'Lưu thay đổi' : 'Thêm bác sĩ'}</Button></>}>
       <section>
         <h3 className="mb-3 text-sm font-semibold">Tài khoản</h3>
+        {!doctor && <p className="mb-3 text-xs text-muted">Bác sĩ cần đăng ký tài khoản trước. Nhập email đã đăng ký để chuyển vai trò từ bệnh nhân sang bác sĩ.</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Họ và tên" required error={err('full_name')}><Input value={f.full_name} onChange={set('full_name')} invalid={!!err('full_name')} /></Field>
-          <Field label="Email" required error={err('email')}><Input type="email" value={f.email} onChange={set('email')} invalid={!!err('email')} /></Field>
+          <Field label="Email" required error={err('email')}><Input type="email" value={f.email} onChange={set('email')} readOnly={!!doctor} aria-readonly={!!doctor} invalid={!!err('email')} /></Field>
           <Field label="Số điện thoại" error={err('phone')}><Input inputMode="tel" value={f.phone} onChange={set('phone')} invalid={!!err('phone')} /></Field>
           <Field label="Ảnh đại diện (URL)" error={err('avatar_url')}>
             <div className="flex items-center gap-2"><Avatar name={f.full_name || '?'} url={!e.avatar_url ? f.avatar_url || null : null} size={40} /><Input value={f.avatar_url} onChange={set('avatar_url')} placeholder="https://…" invalid={!!err('avatar_url')} /></div>
@@ -219,13 +244,13 @@ export function DoctorDetail({ id }: { id: string }) {
             <Button variant="secondary" icon={<Power className="size-4" />} onClick={() => toggle(d, !d.is_active)}>{d.is_active ? 'Ngừng hoạt động' : 'Kích hoạt'}</Button>
             <Button variant="secondary" icon={<Pencil className="size-4" />} onClick={() => setEdit(true)}>Chỉnh sửa</Button>
             {hasAppts ? (
-              <Tooltip text={`Không thể xóa: bác sĩ có ${list.length} lịch hẹn. Hãy ngừng hoạt động thay thế.`}>
+              <Tooltip text={`Không thể xóa hồ sơ: bác sĩ có ${list.length} lịch hẹn. Hãy ngừng hoạt động để giữ lịch sử.`}>
                 <Button variant="secondary" disabled icon={<Trash2 className="size-4" />} aria-label="Xóa bác sĩ (bị chặn)">Xóa</Button>
               </Tooltip>
             ) : <Button variant="secondary" className="text-[#B91C1C]" icon={<Trash2 className="size-4" />} onClick={() => setDel(true)}>Xóa</Button>}
           </div>
         </div>
-        {hasAppts && <p className="mt-3 text-xs text-muted">Bác sĩ đã có lịch hẹn nên không thể xóa. Ngừng hoạt động để ẩn khỏi đặt lịch mới.</p>}
+        {hasAppts && <p className="mt-3 text-xs text-muted">Bác sĩ đã có lịch hẹn nên không thể xóa hồ sơ. Ngừng hoạt động để giữ lịch sử và ẩn khỏi đặt lịch mới.</p>}
       </Card>
       <Tabs className="mt-4" value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Tổng quan' }, { id: 'slots', label: 'Khung giờ' }, { id: 'appts', label: 'Lịch hẹn', count: list.length }, { id: 'stats', label: 'Thống kê' }]} />
       <div className="mt-4">
@@ -269,9 +294,9 @@ export function DoctorDetail({ id }: { id: string }) {
       </div>
       {dialog}
       {edit && <DoctorForm doctor={d} onClose={() => setEdit(false)} />}
-      <ConfirmDialog open={del} onClose={() => setDel(false)} tone="danger" title="Xóa bác sĩ" confirmLabel="Xóa vĩnh viễn"
-        message={<>Xóa BS. <b className="text-ink">{d.profile.full_name}</b> cùng tài khoản và khung giờ trống? Thao tác không thể hoàn tác.</>}
-        onConfirm={() => { const r = deleteDoctor(d.id); if (!r.ok) return toast({ tone: 'error', title: r.error }); toast({ tone: 'success', title: 'Đã xóa bác sĩ' }); navigate('/doctors') }} />
+      <ConfirmDialog open={del} onClose={() => setDel(false)} tone="danger" title="Xóa hồ sơ bác sĩ" confirmLabel="Xóa bác sĩ"
+        message={<>Xóa hồ sơ BS. <b className="text-ink">{d.profile.full_name}</b>? Tài khoản sẽ chuyển về vai trò bệnh nhân và các khung giờ của bác sĩ sẽ bị xóa. Lịch sử hẹn đã có sẽ chặn thao tác này.</>}
+        onConfirm={async () => { try { await deleteDoctor(d.id); toast({ tone: 'success', title: 'Đã xóa hồ sơ bác sĩ; tài khoản đã chuyển về bệnh nhân' }); navigate('/doctors') } catch (error) { toast({ tone: 'error', title: errorMessage(error, 'Không thể xóa hồ sơ bác sĩ') }) } }} />
     </div>
   )
 }

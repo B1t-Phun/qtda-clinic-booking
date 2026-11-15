@@ -57,13 +57,17 @@ export default function AccountsPage() {
         p_room: doctor.room || null,
         p_consultation_fee: doctor.fee ? Number(doctor.fee) : null,
       });
-      if (error) throw new Error('Không thể đổi vai trò. Kiểm tra thông tin bác sĩ; tài khoản đã có lịch hẹn có thể bị hạn chế đổi vai trò.');
+      if (error) throw error;
       setPending(null); setMessage('Đã cập nhật quyền truy cập trên hệ thống.');
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Không thể đổi vai trò.'); }
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' ? e.message : null;
+      setError(message || 'Không thể đổi vai trò.');
+    }
     finally { setBusy(false); }
   }
   const rows = accounts.filter((account) => (account.full_name + ' ' + account.email).toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')));
+  const pendingAccount = pending ? accounts.find((account) => account.id === pending.id) : null;
   return <div className="space-y-4">
     <PageHeader title="Tài khoản và vai trò" description="Quản lý quyền truy cập hệ thống ClinicCare" />
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -77,10 +81,12 @@ export default function AccountsPage() {
     </Card>
     {pending && <form onSubmit={save} className="space-y-3 rounded-xl border bg-white p-5">
       <h2 className="font-bold">Xác nhận đổi thành {labels[pending.role]}</h2>
+      {pending.role === 'doctor' && <p className="text-sm text-slate-600">Tài khoản sẽ được chuyển thành bác sĩ và tạo hồ sơ hành nghề; số năm kinh nghiệm ban đầu là 0.</p>}
+      {pendingAccount?.role === 'doctor' && pending.role === 'patient' && <p className="text-sm text-slate-600">Hồ sơ bác sĩ và khung giờ sẽ bị xóa, tài khoản chuyển về bệnh nhân. Tài khoản có lịch hẹn không thể hạ vai trò; hãy dùng “Ngừng hoạt động” để giữ lịch sử.</p>}
       {pending.role === 'doctor' && <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-3">
         <label className="text-sm">Chuyên khoa<select required className="mt-1 w-full rounded-lg border p-2" value={doctor.specialty} onChange={(e) => setDoctor({ ...doctor, specialty: e.target.value })}><option value="">Chọn chuyên khoa</option>{specialties.map((spec) => <option key={spec.id} value={spec.id}>{spec.name}</option>)}</select></label>
         <label className="text-sm">Phòng khám<input required maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={doctor.room} onChange={(e) => setDoctor({ ...doctor, room: e.target.value })} /></label>
-        <label className="text-sm">Phí khám<input required type="number" min={0} step={1000} className="mt-1 w-full rounded-lg border p-2" value={doctor.fee} onChange={(e) => setDoctor({ ...doctor, fee: e.target.value })} /></label>
+        <label className="text-sm">Phí khám<input required type="number" min={1000} step={1000} className="mt-1 w-full rounded-lg border p-2" value={doctor.fee} onChange={(e) => setDoctor({ ...doctor, fee: e.target.value })} /></label>
       </fieldset>}
       <div className="flex gap-4"><button disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">{busy ? 'Đang lưu…' : 'Xác nhận đổi quyền'}</button><button type="button" disabled={busy} onClick={() => setPending(null)} className="text-sm">Hủy</button></div>
     </form>}
