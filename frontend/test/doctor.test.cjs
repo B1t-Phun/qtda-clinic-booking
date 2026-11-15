@@ -42,7 +42,7 @@ function harness({role='doctor',needsMfa=false,authenticated=true,rpcError=null}
   const query={
     select(){return query;},eq(key,value){calls.push(['eq',key,value]);return query;},
     single:async()=>({data:{id:'doctor-1',profile_id:'user-1',specialty_id:1},error:null}),
-    insert:async rows=>{calls.push(['insert',rows]);return {error:null};},
+    insert:rows=>{calls.push(['insert',rows]);return {select:async()=>({data:rows.map((row,index)=>({...row,id:index+1})),error:null})};},
   };
   const client={from(table){calls.push(['from',table]);return query;},rpc:async(name,body)=>{calls.push(['rpc',name,body]);return{data:{id:1,status:'confirmed'},error:rpcError};}};
   const route=load('src/app/api/doctor/[action]/route.ts',{
@@ -135,4 +135,53 @@ test('doctor provider renders the page on the server from its initial snapshot w
   const html=renderToStaticMarkup(React.createElement(DoctorProvider,{initialSnapshot},React.createElement(Page)));
   assert.match(html,/<h1>Rendered doctor page: Doctor \/ <\/h1>/);
   assert.equal(html.includes('Đang tải lịch khám từ Supabase'),false);
+});
+
+test('doctor API rejects overlapping batches and calendar overflow before writing slots', async () => {
+  const future = new Date(); future.setUTCFullYear(future.getUTCFullYear() + 1);
+  const date = future.toISOString().slice(0, 10);
+  for (const slots of [
+    [{ slot_date: date, start_time: '08:00', end_time: '09:00' }, { slot_date: date, start_time: '08:30', end_time: '09:30' }],
+    [{ slot_date: '2099-02-31', start_time: '08:00', end_time: '09:00' }],
+  ]) {
+    const h = harness();
+    assert.equal((await h.post('slots', { slots })).status, 400);
+    assert.equal(h.calls.some(call => call[0] === 'insert'), false);
+  }
+});
+test('doctor API rejects profile role changes and professional identity changes', async () => {
+  const personal = { full_name: 'Doctor Test', phone: '', date_of_birth: '', gender: '', address: '', avatar_url: '' };
+  for (const [action, payload] of [
+    ['profile', { ...personal, role: 'admin' }], ['profile', { ...personal, id: 'other-user' }],
+    ['professional', { bio: '', room: 'P1', consultation_fee: 100000, is_active: true }],
+    ['professional', { bio: '', room: 'P1', consultation_fee: -1 }],
+    ['professional', { bio: '', room: 'P1', consultation_fee: 10.5 }],
+  ]) {
+    const h = harness();
+    assert.equal((await h.post(action, payload)).status, 400);
+    assert.equal(h.calls.some(call => call[0] === 'rpc' || call[0] === 'insert'), false);
+  }
+});
+test('doctor appointment bodies remain bounded even when Content-Length is omitted', async () => {
+  const h = harness();
+  const response = await h.post('appointment', { ...action, note: 'x'.repeat(70000) });
+  assert.equal(response.status, 413);
+  assert.equal(h.calls.some(call => call[0] === 'rpc'), false);
+});
+test('history lookup refuses a foreign appointment before querying its audit events', async () => {
+  const calls = [];
+  const query = {
+    select() { return query; }, eq(key, value) { calls.push(['eq', key, value]); return query; },
+    single: async () => calls.some(call => call[1] === 'id')
+      ? { data: null, error: { code: 'PGRST116' } } : { data: { id: 'doctor-1' }, error: null },
+  };
+  const route = load('src/app/api/doctor/[action]/route.ts', {
+    '@/lib/auth/server': { createServerSupabase: async () => ({ from(table) { calls.push(['from', table]); return query; } }),
+      readIdentity: async () => ({ user: { id: 'user-1', role: 'doctor' }, needsMfa: false }) },
+    '@/lib/auth/http': http, '@/lib/doctor/snapshot': snapshot,
+  });
+  const response = await route.GET(new Request('http://localhost:3000/api/doctor/history?appointmentId=99'), { params: Promise.resolve({ action: 'history' }) });
+  assert.equal(response.status, 404);
+  assert.equal(calls.some(call => call[0] === 'from' && call[1] === 'appointment_events'), false);
+  assert.ok(calls.some(call => call[1] === 'doctor_id' && call[2] === 'doctor-1'));
 });

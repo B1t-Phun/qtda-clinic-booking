@@ -11,10 +11,10 @@ function value(env, key) {
 }
 function validOrigin(source) {
   const url = new URL(source);
-  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.hostname.endsWith('.localhost');
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
       (url.protocol !== 'https:' && !(url.protocol === 'http:' && local))) {
-    throw new Error('APP_URL/origin phải là HTTPS hoặc HTTP localhost, không có đường dẫn con.');
+    throw new Error('APP_URL/origin phải là HTTPS hoặc HTTP loopback (.localhost), không có đường dẫn con.');
   }
   return url.origin;
 }
@@ -103,7 +103,7 @@ export async function configureAuth(env, { apply = false, fetcher = fetch } = {}
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('npm run supabase:configure [-- --apply]\nMặc định xem các nhóm/trường sẽ cấu hình; --apply ghi lên project và xác minh lại.\nHợp nhất .env ở root, backend, frontend, supabase; shell được ưu tiên cao nhất.\nSecrets nằm trong supabase/.env.local. Không dùng service_role làm token quản trị.');
+    console.log('npm run supabase:configure [-- --apply]\nMặc định xem các nhóm/trường sẽ cấu hình; --apply ghi lên project và xác minh lại.\nĐọc .env.local ở thư mục gốc; shell được ưu tiên cao nhất.\nSecrets quản trị cũng nằm trong .env.local gốc. Không dùng service_role làm token quản trị.');
     return;
   }
   if (args.some(arg => arg !== '--apply')) throw new Error('Chỉ chấp nhận --apply hoặc --help.');

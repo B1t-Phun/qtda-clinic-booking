@@ -110,3 +110,13 @@ test('stale SMTP environment values cannot restore custom delivery or block conf
   assert.equal(Object.hasOwn(payload, 'smtp_sender_name'), false);
   assert.equal(JSON.stringify(payload).includes('bad-secret'), false);
 });
+
+test('HTTP local subdomains support hCaptcha while public hostnames still require HTTPS', () => {
+  const APP_URL = 'http://cliniccare.localhost:3000';
+  const { patch } = buildAuthPatch({ ...env, APP_URL });
+  assert.equal(patch.site_url, APP_URL);
+  assert.ok(patch.uri_allow_list.includes(APP_URL + '/auth/callback'));
+  for (const APP_URL of ['http://localhost.evil.example:3000', 'http://cliniccare.localhost.evil.example:3000']) {
+    assert.throws(() => buildAuthPatch({ ...env, APP_URL }));
+  }
+});

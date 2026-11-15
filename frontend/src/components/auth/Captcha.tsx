@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { loadHCaptcha, type HCaptchaApi } from '@/lib/auth/hcaptcha';
+import { hcaptchaFailure, loadHCaptcha, type HCaptchaApi } from '@/lib/auth/hcaptcha';
 
 export function Captcha({ onToken, revision }: { onToken: (token: string) => void; revision: number }) {
   const container = useRef<HTMLDivElement>(null);
@@ -21,7 +21,18 @@ export function Captcha({ onToken, revision }: { onToken: (token: string) => voi
         callback: (token: string) => { if (active) { setError(''); onToken(token); } },
         'expired-callback': () => { if (active) { onToken(''); setError('Phiên xác minh đã hết hạn. Vui lòng xác minh lại.'); } },
         'chalexpired-callback': () => { if (active) { onToken(''); setError('Vui lòng thử lại bước xác minh.'); } },
-        'error-callback': () => { if (active) { onToken(''); setError('Không thể xác minh. Vui lòng thử lại.'); } },
+        'error-callback': (reason: unknown) => {
+          if (!active) return;
+          onToken('');
+          const failure = hcaptchaFailure(reason);
+          // Report only the SDK error code, never its callback payload or a token.
+          console.warn('[hCaptcha]', failure.code);
+          if (widget !== undefined) {
+            try { api?.reset(widget); }
+            catch { setAttempt(value => value + 1); }
+          }
+          setError(failure.message);
+        },
       });
     }).catch(caught => {
       if (active) {

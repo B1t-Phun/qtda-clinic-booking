@@ -9,7 +9,8 @@ const ts = require('../node_modules/typescript');
 function loadTs(relative, imports = {}, globals = {}) {
   const filename = path.resolve(__dirname, '../', relative);
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    fileName: filename,
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const loadedModule = { exports: {} };
   vm.runInNewContext(source, {
@@ -855,4 +856,59 @@ test('recovery callback forwards PKCE to the reset form without exchanging it on
   assert.equal(location.searchParams.get('code'), 'recovery-code');
   assert.equal(location.searchParams.get('sb_flow_id'), 'flow_123456');
   assert.equal(harness.calls.length, 0);
+});
+
+test('hCaptcha reports actionable errors without logging arbitrary callback data', () => {
+  const { hcaptchaFailure } = loadTs('src/lib/auth/hcaptcha.ts');
+  assert.match(hcaptchaFailure('network-error').message, /kết nối/);
+  assert.match(hcaptchaFailure('challenge-error').message, /khởi tạo/);
+  assert.match(hcaptchaFailure('rate-limited').message, /chờ/);
+  for (const reason of [undefined, new Error('private data'), { token: 'private' }, 'private data', 'a'.repeat(200)]) {
+    const failure = hcaptchaFailure(reason);
+    assert.equal(failure.code, 'unknown-error');
+    assert.equal(JSON.stringify(failure).includes('private'), false);
+  }
+});
+
+test('hCaptcha invalidates the previous token and resets its widget after the first challenge error', async () => {
+  const effects = [], tokens = [], resets = [], warnings = [], errors = [];
+  let options;
+  const api = {
+    render(container, callbacks) { options = callbacks; return 0; },
+    reset(id) { resets.push(id); },
+    remove() {},
+  };
+  const { hcaptchaFailure } = loadTs('src/lib/auth/hcaptcha.ts');
+  const { Captcha } = loadTs('src/components/auth/Captcha.tsx', {
+    react: {
+      useRef: () => ({ current: {} }),
+      useState: initial => [initial, value => { if (typeof value === 'string') errors.push(value); }],
+      useEffect: effect => effects.push(effect),
+    },
+    'react/jsx-runtime': require('react/jsx-runtime'),
+    '@/lib/auth/hcaptcha': { loadHCaptcha: async () => api, hcaptchaFailure },
+  }, { console: { warn: (...values) => warnings.push(values) } });
+  const previous = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY = 'test-site';
+  try {
+    Captcha({ onToken: token => tokens.push(token), revision: 0 });
+    const cleanup = effects[0]();
+    await Promise.resolve();
+    options.callback('old-token');
+    options['error-callback']('challenge-error');
+    assert.equal(tokens.at(-1), '');
+    assert.deepEqual(resets, [0]);
+    assert.match(errors.at(-1), /khởi tạo/);
+    assert.equal(warnings.flat().includes('old-token'), false);
+    options.callback('new-token');
+    assert.equal(tokens.at(-1), 'new-token');
+    assert.equal(errors.at(-1), '');
+    cleanup();
+    options['error-callback']('network-error');
+    assert.deepEqual(resets, [0]);
+    assert.equal(tokens.at(-1), 'new-token');
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+    else process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY = previous;
+  }
 });

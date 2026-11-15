@@ -21,8 +21,6 @@
 /build
 
 
-# Environment variables - ClinicCare
-frontend/.env.local
 # misc
 .DS_Store
 *.pem

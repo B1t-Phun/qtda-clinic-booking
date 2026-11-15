@@ -1,441 +1,170 @@
-
-
-// ==========================================
-// 1. DOCTOR APPOINTMENTS CRUD
-// ==========================================
-
-// Lấy danh sách lịch hẹn của bác sĩ
-exports.getDoctorAppointments = async (req, res) => {
+const APPOINTMENT_FIELDS = [
+  'id', 'patient_id', 'doctor_id', 'slot_id', 'status', 'reason', 'doctor_note', 'cancel_reason',
+  'checked_in_at', 'started_at', 'completed_at', 'created_at', 'updated_at',
+  'patient:profiles!appointments_patient_id_fkey(id,full_name,phone,email,gender,date_of_birth,address,avatar_url)',
+  'slot:time_slots!appointments_slot_fk(id,doctor_id,slot_date,start_time,end_time,is_booked)',
+].join(',');
+const ACTIONS = new Set(['confirm', 'check_in', 'start', 'complete', 'cancel', 'no_show', 'save_note', 'reschedule']);
+function fail(res, status, message) { return res.status(status).json({ success: false, message }); }
+function databaseError(res, error) {
+  const status = ({ '40001': 409, '23505': 409, '23P01': 409, '23503': 409, '42501': 403, P0002: 404, PGRST116: 404, '22023': 400, '23514': 400, '22P02': 400 })[error?.code] || 503;
+  const message = error?.code === '22023' ? error.message : ({
+    409: 'Dữ liệu đã thay đổi hoặc khung giờ đã được sử dụng. Vui lòng tải lại.',
+    403: 'Bạn không có quyền thực hiện thao tác này. Kiểm tra đăng nhập và MFA.',
+    404: 'Không tìm thấy dữ liệu của bạn.', 400: 'Dữ liệu không hợp lệ.',
+  })[status] || 'Dịch vụ dữ liệu tạm thời không khả dụng.';
+  return fail(res, status, message);
+}
+function id(value) { return typeof value === 'string' && /^[1-9]\d{0,18}$/.test(value) && (value.length < 19 || value <= '9223372036854775807'); }
+function date(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value; }
+function doctorId(req) { return req.auth?.doctorId; }
+function page(req) {
+  const offset = Number(req.query.offset || 0), limit = Number(req.query.limit || 50);
+  if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error('pagination');
+  return { offset, limit };
+}
+async function listAppointments(req, res, single = false) {
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
+  if (single && !id(req.params.id)) return fail(res, 400, 'Mã lịch hẹn không hợp lệ.');
+  const { status, date: day } = req.query;
+  if (status && status !== 'all' && !['pending', 'confirmed', 'completed', 'cancelled', 'no_show'].includes(status)) return fail(res, 400, 'Trạng thái không hợp lệ.');
+  if (day && !date(day)) return fail(res, 400, 'Ngày khám không hợp lệ.');
   try {
-    const { doctor_id, status, date } = req.query;
-
-    let query = req.supabase
-      .from('appointments')
-      .select(`
-        id,
-        status,
-        reason,
-        doctor_note,
-        cancel_reason,
-        created_at,
-        updated_at,
-        patient:profiles!appointments_patient_id_fkey (
-          id,
-          full_name,
-          phone,
-          email,
-          gender,
-          date_of_birth,
-          avatar_url,
-          address
-        ),
-        slot:time_slots (
-          id,
-          slot_date,
-          start_time,
-          end_time,
-          is_booked
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    // Lọc theo bác sĩ (nếu có truyền doctor_id)
-    if (doctor_id) {
-      query = query.eq('doctor_id', doctor_id);
+    let query = req.supabase.from('appointments').select(APPOINTMENT_FIELDS, { count: 'exact' }).eq('doctor_id', doctorId(req));
+    if (single) {
+      const result = await query.eq('id', req.params.id).single();
+      if (result.error) return databaseError(res, result.error);
+      return res.json({ success: true, data: result.data });
     }
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    let filtered = data;
-    if (date) {
-      filtered = data.filter((item) => item.slot?.slot_date === date);
-    }
-
-    return res.status(200).json({
-      success: true,
-      count: filtered.length,
-      data: filtered,
+    if (status && status !== 'all') query = query.eq('status', status);
+    if (day) query = query.eq('slot.slot_date', day).not('slot', 'is', null);
+    const { offset, limit } = page(req);
+    const result = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, count: result.count, data: result.data || [] });
+  } catch (error) { return error.message === 'pagination' ? fail(res, 400, 'Phân trang không hợp lệ.') : databaseError(res, error); }
+}
+exports.getDoctorAppointments = (req, res) => listAppointments(req, res);
+exports.getDoctorAppointmentById = (req, res) => listAppointments(req, res, true);
+async function manage(req, res, action, note, reason, slotId) {
+  const body = req.body || {};
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
+  if (!id(req.params.id) || !ACTIONS.has(action) || typeof body.expected_updated_at !== 'string' || !Number.isFinite(Date.parse(body.expected_updated_at)) ||
+    (note !== undefined && (typeof note !== 'string' || note.length > 10000)) ||
+    (reason !== undefined && (typeof reason !== 'string' || reason.length > 1000)) ||
+    (slotId !== undefined && !id(slotId))) return fail(res, 400, 'Kiểm tra hành động, mã lịch hẹn và phiên bản cập nhật.');
+  const allowed = ['doctor_id', 'action', 'status', 'doctor_note', 'note', 'cancel_reason', 'reason', 'slot_id', 'expected_updated_at'];
+  if (Object.keys(body).some(key => !allowed.includes(key))) return fail(res, 400, 'Không được thay đổi thông tin định danh.');
+  if (body.doctor_id !== undefined && body.doctor_id !== doctorId(req)) return fail(res, 403, 'Không được truy cập dữ liệu bác sĩ khác.');
+  try {
+    const result = await req.supabase.rpc('doctor_manage_appointment', {
+      p_appointment_id: req.params.id, p_action: action, p_expected_updated_at: body.expected_updated_at,
+      p_note: note ?? null, p_reason: reason ?? null, p_slot_id: slotId ?? null,
     });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// Lấy chi tiết 1 lịch hẹn
-exports.getDoctorAppointmentById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data, error } = await req.supabase
-      .from('appointments')
-      .select(`
-        *,
-        patient:profiles!appointments_patient_id_fkey (*),
-        slot:time_slots (*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    if (!data) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lịch hẹn' });
-    }
-
-    return res.status(200).json({ success: true, data });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// Bác sĩ cập nhật trạng thái lịch hẹn (Xác nhận, Đang khám, Hoàn tất, Hủy, Vắng mặt)
-exports.updateAppointmentStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, cancel_reason, doctor_note } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ success: false, message: 'Thiếu status' });
-    }
-
-    const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Trạng thái không hợp lệ. Phải là một trong: ${validStatuses.join(', ')}`,
-      });
-    }
-
-    const updates = { status, updated_at: new Date().toISOString() };
-    if (cancel_reason !== undefined) updates.cancel_reason = cancel_reason;
-    if (doctor_note !== undefined) updates.doctor_note = doctor_note;
-
-    const { data, error } = await req.supabase
-      .from('appointments')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.status(200).json({
-      success: true,
-      message: `Đã cập nhật trạng thái thành: ${status}`,
-      data,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// Bác sĩ cập nhật bệnh án / chẩn đoán / ghi chú khám
-exports.updateDoctorNote = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { doctor_note } = req.body;
-
-    if (doctor_note === undefined) {
-      return res.status(400).json({ success: false, message: 'Thiếu doctor_note' });
-    }
-
-    const { data, error } = await req.supabase
-      .from('appointments')
-      .update({ doctor_note, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.status(200).json({
-      success: true,
-      message: 'Lưu ghi chú khám bệnh thành công',
-      data,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// ==========================================
-// 2. DOCTOR SCHEDULE & TIME SLOTS CRUD
-// ==========================================
-
-// Xem danh sách khung giờ khám của bác sĩ
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, message: 'Đã cập nhật lịch hẹn.', data: result.data });
+  } catch (error) { return databaseError(res, error); }
+}
+exports.manageAppointment = (req, res) => manage(req, res, req.body.action, req.body.note, req.body.reason, req.body.slot_id);
+exports.updateAppointmentStatus = (req, res) => manage(req, res, ({ confirmed: 'confirm', completed: 'complete', cancelled: 'cancel', no_show: 'no_show' })[req.body.status], req.body.doctor_note, req.body.cancel_reason);
+exports.updateDoctorNote = (req, res) => manage(req, res, 'save_note', req.body.doctor_note);
 exports.getDoctorSlots = async (req, res) => {
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
+  for (const key of ['date', 'from_date', 'to_date']) if (req.query[key] && !date(req.query[key])) return fail(res, 400, 'Ngày khám không hợp lệ.');
   try {
-    const { doctor_id, date, from_date, to_date } = req.query;
-
-    let query = req.supabase
-      .from('time_slots')
-      .select('*')
-      .order('slot_date', { ascending: true })
-      .order('start_time', { ascending: true });
-
-    if (doctor_id) query = query.eq('doctor_id', doctor_id);
-    if (date) query = query.eq('slot_date', date);
-    if (from_date) query = query.gte('slot_date', from_date);
-    if (to_date) query = query.lte('slot_date', to_date);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return res.status(200).json({ success: true, count: data.length, data });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    let query = req.supabase.from('time_slots').select('*', { count: 'exact' }).eq('doctor_id', doctorId(req));
+    if (req.query.date) query = query.eq('slot_date', req.query.date);
+    if (req.query.from_date) query = query.gte('slot_date', req.query.from_date);
+    if (req.query.to_date) query = query.lte('slot_date', req.query.to_date);
+    const { offset, limit } = page(req);
+    const result = await query.order('slot_date').order('start_time').range(offset, offset + limit - 1);
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, count: result.count, data: result.data || [] });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// Bác sĩ mở thêm khung giờ khám mới
 exports.createDoctorSlot = async (req, res) => {
+  const { slot_date, start_time, end_time, doctor_id } = req.body;
+  if (!doctorId(req) || (doctor_id !== undefined && doctor_id !== doctorId(req))) return fail(res, 403, 'Không được tạo khung giờ của bác sĩ khác.');
+  if (Object.keys(req.body).some(key => !['doctor_id', 'slot_date', 'start_time', 'end_time'].includes(key)) ||
+    !date(slot_date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start_time || '') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end_time || '') ||
+    end_time <= start_time || Date.parse(slot_date + 'T' + start_time + ':00+07:00') <= Date.now()) return fail(res, 400, 'Khung giờ phải hợp lệ và nằm trong tương lai.');
   try {
-    const { doctor_id, slot_date, start_time, end_time } = req.body;
-
-    if (!doctor_id || !slot_date || !start_time || !end_time) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu doctor_id, slot_date, start_time hoặc end_time',
-      });
-    }
-
-    const { data, error } = await req.supabase
-      .from('time_slots')
-      .insert([{ doctor_id, slot_date, start_time, end_time, is_booked: false }])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.status(201).json({
-      success: true,
-      message: 'Tạo khung giờ khám thành công',
-      data,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    const result = await req.supabase.from('time_slots').insert({ doctor_id: doctorId(req), slot_date, start_time, end_time, is_booked: false }).select().single();
+    if (result.error) return databaseError(res, result.error);
+    return res.status(201).json({ success: true, data: result.data });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// Bác sĩ xóa khung giờ (nếu chưa có người đặt)
 exports.deleteDoctorSlot = async (req, res) => {
+  if (!doctorId(req) || !id(req.params.id)) return fail(res, 400, 'Khung giờ không hợp lệ.');
   try {
-    const { id } = req.params;
-
-    // Kiểm tra slot đã có người đặt chưa
-    const { data: slot, error: fetchErr } = await req.supabase
-      .from('time_slots')
-      .select('is_booked')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr || !slot) {
-      return res.status(404).json({ success: false, message: 'Khung giờ không tồn tại' });
-    }
-
-    if (slot.is_booked) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không thể xóa khung giờ đã có bệnh nhân đặt lịch',
-      });
-    }
-
-    const { error } = await req.supabase.from('time_slots').delete().eq('id', id);
-    if (error) throw error;
-
-    return res.status(200).json({ success: true, message: 'Đã xóa khung giờ thành công' });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    const result = await req.supabase.from('time_slots').delete().eq('id', req.params.id).eq('doctor_id', doctorId(req)).select('id');
+    if (result.error) return databaseError(res, result.error);
+    if (!result.data?.length) return fail(res, 404, 'Không tìm thấy khung giờ của bạn.');
+    return res.json({ success: true, message: 'Đã xóa khung giờ trống.' });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// ==========================================
-// 3. DOCTOR PATIENTS CRUD
-// ==========================================
-
-// Danh sách bệnh nhân đã từng khám hoặc có hẹn với bác sĩ
 exports.getDoctorPatients = async (req, res) => {
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
   try {
-    const { doctor_id } = req.query;
-
-    let query = req.supabase
-      .from('appointments')
-      .select(`
-        patient:profiles!appointments_patient_id_fkey (
-          id,
-          full_name,
-          phone,
-          email,
-          gender,
-          date_of_birth,
-          address
-        ),
-        created_at,
-        status,
-        reason
-      `);
-
-    if (doctor_id) {
-      query = query.eq('doctor_id', doctor_id);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // Lọc danh sách bệnh nhân duy nhất (distinct)
-    const patientMap = new Map();
-    (data || []).forEach((row) => {
-      if (row.patient && !patientMap.has(row.patient.id)) {
-        patientMap.set(row.patient.id, {
-          ...row.patient,
-          lastAppointmentDate: row.created_at,
-          lastReason: row.reason,
-        });
-      }
-    });
-
-    const uniquePatients = Array.from(patientMap.values());
-
-    return res.status(200).json({
-      success: true,
-      count: uniquePatients.length,
-      data: uniquePatients,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    const { offset, limit } = page(req);
+    const result = await req.supabase.from('profiles').select('id,full_name,phone,email,gender,date_of_birth,address,avatar_url,appointments!inner(doctor_id,created_at,status,reason)')
+      .eq('appointments.doctor_id', doctorId(req)).order('full_name').range(offset, offset + limit - 1);
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, count: result.data?.length || 0, data: result.data || [] });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// ==========================================
-// 4. DOCTOR PROFILE & STATS
-// ==========================================
-
-// Xem hồ sơ bác sĩ
 exports.getDoctorProfile = async (req, res) => {
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
   try {
-    const { doctor_id } = req.query;
-    let query = req.supabase
-      .from('doctors')
-      .select(`
-        *,
-        profiles (*),
-        specialties (*)
-      `);
-
-    if (doctor_id) {
-      query = query.eq('id', doctor_id);
-    }
-
-    const { data, error } = await query.limit(1).single();
-    if (error) throw error;
-
-    return res.status(200).json({ success: true, data });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    const result = await req.supabase.from('doctors').select('*,profiles(*),specialties(*)').eq('id', doctorId(req)).eq('profile_id', req.auth.userId).single();
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, data: result.data });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// Bác sĩ cập nhật hồ sơ cá nhân
 exports.updateDoctorProfile = async (req, res) => {
+  if (!doctorId(req) || req.params.id !== doctorId(req)) return fail(res, 403, 'Không được sửa hồ sơ bác sĩ khác.');
+  const allowed = ['doctor_id', 'bio', 'room', 'consultation_fee', 'full_name', 'phone'];
+  if (Object.keys(req.body).some(key => !allowed.includes(key))) return fail(res, 400, 'Không được thay đổi thông tin định danh hoặc phân quyền.');
+  const profile = Object.fromEntries(['full_name', 'phone'].filter(key => req.body[key] !== undefined).map(key => [key, req.body[key]]));
+  const doctor = Object.fromEntries(['bio', 'room', 'consultation_fee'].filter(key => req.body[key] !== undefined).map(key => [key, req.body[key]]));
+  if (!Object.keys(profile).length && !Object.keys(doctor).length) return fail(res, 400, 'Chưa có thông tin thay đổi.');
+  if (profile.full_name !== undefined && (typeof profile.full_name !== 'string' || profile.full_name.trim().length < 2 || profile.full_name.length > 100) ||
+    profile.phone !== undefined && (typeof profile.phone !== 'string' || profile.phone && !/^0\d{9}$/.test(profile.phone)) ||
+    doctor.bio !== undefined && (typeof doctor.bio !== 'string' || doctor.bio.length > 4000) ||
+    doctor.room !== undefined && (typeof doctor.room !== 'string' || doctor.room.length > 100) ||
+    doctor.consultation_fee !== undefined && doctor.consultation_fee !== null && (!Number.isSafeInteger(doctor.consultation_fee) || doctor.consultation_fee < 0 || doctor.consultation_fee > 999999999999)) return fail(res, 400, 'Thông tin hồ sơ không hợp lệ.');
   try {
-    const { id } = req.params; // doctor_id
-    const { bio, room, consultation_fee, full_name, phone } = req.body;
-
-    const docUpdates = {};
-    if (bio !== undefined) docUpdates.bio = bio;
-    if (room !== undefined) docUpdates.room = room;
-    if (consultation_fee !== undefined) docUpdates.consultation_fee = consultation_fee;
-
-    const { data: updatedDoc, error: docErr } = await req.supabase
-      .from('doctors')
-      .update(docUpdates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (docErr) throw docErr;
-
-    // Cập nhật profile nếu có
-    if ((full_name || phone) && updatedDoc?.profile_id) {
-      const profUpdates = {};
-      if (full_name) profUpdates.full_name = full_name;
-      if (phone) profUpdates.phone = phone;
-
-      await req.supabase.from('profiles').update(profUpdates).eq('id', updatedDoc.profile_id);
+    let result;
+    if (!Object.keys(doctor).length) {
+      result = await req.supabase.from('profiles').update(profile).eq('id', req.auth.userId).select('*').single();
+    } else if (!Object.keys(profile).length) {
+      result = await req.supabase.from('doctors').update(doctor).eq('id', doctorId(req)).eq('profile_id', req.auth.userId).select('*').single();
+    } else {
+      result = await req.supabase.rpc('doctor_update_profile', { p_profile: profile, p_doctor: doctor });
+      if (result.error?.code === 'PGRST202' || result.error?.code === '42883') return fail(res, 409, 'Chưa thể lưu đồng thời hai nhóm thông tin. Lưu thông tin cá nhân và chuyên môn lần lượt.');
     }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Cập nhật thông tin bác sĩ thành công',
-      data: updatedDoc,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    if (result.error) return databaseError(res, result.error);
+    return res.json({ success: true, data: result.data, message: 'Đã lưu hồ sơ bác sĩ.' });
+  } catch (error) { return databaseError(res, error); }
 };
-
-// Lấy chỉ số tổng quan trong ngày cho Bác sĩ (Figma Tổng quan · Ngày làm việc)
 exports.getDoctorTodayStats = async (req, res) => {
+  if (!doctorId(req)) return fail(res, 403, 'Không xác định được bác sĩ.');
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const { doctor_id } = req.query;
-
-    let apptQuery = req.supabase
-      .from('appointments')
-      .select(`
-        id,
-        status,
-        reason,
-        patient_id,
-        slot_id,
-        time_slots (
-          slot_date,
-          start_time,
-          end_time
-        ),
-        patient:profiles!appointments_patient_id_fkey (
-          id,
-          full_name,
-          gender,
-          date_of_birth
-        )
-      `);
-
-    if (doctor_id) {
-      apptQuery = apptQuery.eq('doctor_id', doctor_id);
+    const rows = [];
+    for (let offset = 0; offset < 20000; offset += 500) {
+      const result = await req.supabase.from('appointments').select(APPOINTMENT_FIELDS).eq('doctor_id', doctorId(req))
+        .eq('slot.slot_date', today).not('slot', 'is', null).order('id').range(offset, offset + 499);
+      if (result.error) return databaseError(res, result.error);
+      rows.push(...result.data || []);
+      if ((result.data || []).length < 500) break;
     }
-
-    const { data: allAppts, error } = await apptQuery;
-    if (error) throw error;
-
-    const todayList = (allAppts || []).filter(
-      (a) => a.time_slots?.slot_date === today
-    );
-
-    const pending = todayList.filter((a) => a.status === 'pending');
-    const confirmed = todayList.filter((a) => a.status === 'confirmed');
-    const completed = todayList.filter((a) => a.status === 'completed');
-    const cancelled = todayList.filter((a) => a.status === 'cancelled' || a.status === 'no_show');
-
-    // Ca đang khám (Figma: Ca đang khám)
-    const currentExamining = confirmed[0] || pending[0] || null;
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        today,
-        totalToday: todayList.length,
-        pendingCount: pending.length,
-        confirmedCount: confirmed.length,
-        completedCount: completed.length,
-        cancelledCount: cancelled.length,
-        currentExamining,
-        todayAppointments: todayList,
-      },
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    rows.sort((a, b) => (a.slot?.start_time || '').localeCompare(b.slot?.start_time || ''));
+    return res.json({ success: true, data: { today, totalToday: rows.length,
+      pendingCount: rows.filter(a => a.status === 'pending').length, confirmedCount: rows.filter(a => a.status === 'confirmed').length,
+      checkedInCount: rows.filter(a => a.checked_in_at).length, completedCount: rows.filter(a => a.status === 'completed').length,
+      cancelledCount: rows.filter(a => a.status === 'cancelled').length, noShowCount: rows.filter(a => a.status === 'no_show').length,
+      currentExamining: rows.find(a => a.status === 'confirmed' && a.started_at) || null, todayAppointments: rows,
+    } });
+  } catch (error) { return databaseError(res, error); }
 };

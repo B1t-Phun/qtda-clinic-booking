@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { createRequire } from "node:module";
+
+// Anchor the shared loader to this config file when Next.js transpiles it.
+const { loadFrontendEnv } = createRequire(__filename)("../scripts/env.cjs") as typeof import("../scripts/env.cjs");
+Object.assign(process.env, loadFrontendEnv());
 
 const nextConfig: NextConfig = {
   async headers() {

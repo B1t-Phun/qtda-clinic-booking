@@ -1,179 +1,66 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
-import {
-  Check,
-  ChevronRight,
-  LockKeyhole,
-  LogOut,
-  Stethoscope,
-} from 'lucide-react';
-import {
-  type Profile,
-} from '../data';
-import {
-  Avatar,
-  DoctorButton,
-  Field,
-} from '../components/DoctorUI';
+import Link from 'next/link';
+import { useState } from 'react';
+import { Save, ShieldCheck } from 'lucide-react';
+import type { ProfessionalInput, Profile, ProfileInput } from '../data';
+import { Avatar, DoctorButton, Field, PageHeading } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
+import { clinicDate } from '../workflow';
 import { money } from '../utils';
 
+function profileInput(profile: Profile): ProfileInput {
+  return { full_name: profile.full_name, phone: profile.phone, date_of_birth: profile.date_of_birth,
+    gender: profile.gender, address: profile.address, avatar_url: profile.avatar_url };
+}
 export default function ProfileView() {
-  const { profile, doctor, setProfile, logout } = useDoctorStore();
-  const [draft, setDraft] = useState(profile);
-  const router = useRouter();
-
-  const save = () => {
-    setProfile({ ...draft, updated_at: new Date().toISOString() });
-  };
-
-  const uploadAvatar = (file?: File) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDraft((prev) => ({ ...prev, avatar_url: String(reader.result) }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <p className="eyebrow">TÀI KHOẢN</p>
-        <h1>Hồ sơ và cài đặt</h1>
-        <p className="heading-sub">Quản lý thông tin cá nhân và bảo mật tài khoản.</p>
-      </div>
-
-      <div className="profile-grid">
-        <section className="card profile-section">
-          <div className="profile-photo">
-            <Avatar profile={draft} size="lg" />
-            <div>
-              <h3>{draft.full_name}</h3>
-              <p>{draft.email}</p>
-              <label className="avatar-upload">
-                Thay ảnh đại diện
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => uploadAvatar(e.target.files?.[0])}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="form-grid two">
-            <Field label="Họ và tên">
-              <input
-                value={draft.full_name}
-                onChange={(e) => setDraft({ ...draft, full_name: e.target.value })}
-              />
-            </Field>
-            <Field label="Số điện thoại">
-              <input
-                value={draft.phone}
-                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-              />
-            </Field>
-            <Field label="Ngày sinh">
-              <input
-                type="date"
-                value={draft.date_of_birth}
-                onChange={(e) => setDraft({ ...draft, date_of_birth: e.target.value })}
-              />
-            </Field>
-            <Field label="Giới tính">
-              <select
-                value={draft.gender}
-                onChange={(e) =>
-                  setDraft({ ...draft, gender: e.target.value as Profile['gender'] })
-                }
-              >
-                <option value="male">Nam</option>
-                <option value="female">Nữ</option>
-                <option value="other">Khác</option>
-              </select>
-            </Field>
-            <Field label="Địa chỉ" wide>
-              <input
-                value={draft.address}
-                onChange={(e) => setDraft({ ...draft, address: e.target.value })}
-              />
-            </Field>
-          </div>
-
-          <div className="section-actions">
-            <DoctorButton onClick={save} icon={<Check size={18} />}>
-              Lưu thay đổi
-            </DoctorButton>
-          </div>
-        </section>
-
-        <aside>
-          <section className="card professional-card">
-            <div className="card-title">
-              <span>
-                <Stethoscope />
-              </span>
-              <div>
-                <h3>Thông tin chuyên môn</h3>
-                <p>Liên hệ admin để thay đổi</p>
-              </div>
-            </div>
-            <dl>
-              <div>
-                <dt>Chuyên khoa</dt>
-                <dd>Tim mạch</dd>
-              </div>
-              <div>
-                <dt>Phòng khám</dt>
-                <dd>{doctor.room}</dd>
-              </div>
-              <div>
-                <dt>Kinh nghiệm</dt>
-                <dd>{doctor.years_experience} năm</dd>
-              </div>
-              <div>
-                <dt>Phí tư vấn</dt>
-                <dd>{money(doctor.consultation_fee)}</dd>
-              </div>
-              <div>
-                <dt>Trạng thái</dt>
-                <dd>
-                  <span className="active-dot" />
-                  Đang hoạt động
-                </dd>
-              </div>
-              <div>
-                <dt>Giới thiệu</dt>
-                <dd>{doctor.bio}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="card settings-card">
-            <button type="button" onClick={() => router.push('/account/security') }>
-              <LockKeyhole />
-              <span>
-                <b>Đổi mật khẩu</b>
-                <small>Cập nhật mật khẩu đăng nhập</small>
-              </span>
-              <ChevronRight />
-            </button>
-            <button type="button" className="logout" onClick={logout}>
-              <LogOut />
-              <span>
-                <b>Đăng xuất</b>
-                <small>Thoát khỏi tài khoản hiện tại</small>
-              </span>
-              <ChevronRight />
-            </button>
-          </section>
-        </aside>
-      </div>
-
+  const store = useDoctorStore();
+  const [draft, setDraft] = useState(() => profileInput(store.profile));
+  const [professional, setProfessional] = useState<ProfessionalInput>(() => ({
+    bio: store.doctor.bio, room: store.doctor.room, consultation_fee: store.doctor.consultation_fee,
+  }));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(profileInput(store.profile));
+  const professionalDirty = professional.bio !== store.doctor.bio || professional.room !== store.doctor.room || professional.consultation_fee !== store.doctor.consultation_fee;
+  const busy = !!store.pending;
+  return <div className="page-content">
+    <PageHeading title="Hồ sơ bác sĩ" description="Cập nhật thông tin liên hệ và thông tin khám bệnh của chính bạn." />
+    <div className="profile-grid">
+      <section className="card"><div className="profile-heading"><Avatar profile={store.profile} size="lg" /><div><h2>{store.profile.full_name}</h2><p>{store.profile.email}</p><small>{store.specialty?.name || 'Chưa có chuyên khoa'}</small></div></div>
+        <form onSubmit={async event => { event.preventDefault(); const values = { ...draft, full_name: draft.full_name.trim(), phone: draft.phone.trim(), address: draft.address.trim(), avatar_url: draft.avatar_url.trim() };
+          if (await store.saveProfile(values)) setDraft(values); }}>
+          <fieldset disabled={busy} className="form-stack"><div className="form-grid two">
+            <Field label="Họ và tên"><input autoComplete="name" required minLength={2} maxLength={100} value={draft.full_name} onChange={event => setDraft({ ...draft, full_name: event.target.value })} /></Field>
+            <Field label="Số điện thoại"><input type="tel" autoComplete="tel" inputMode="tel" pattern="0[0-9]{9}" maxLength={10} value={draft.phone} onChange={event => setDraft({ ...draft, phone: event.target.value.replace(/\D/g, '').slice(0, 10) })} /></Field>
+            <Field label="Ngày sinh"><input type="date" min="1900-01-01" max={clinicDate(store.now)} value={draft.date_of_birth} onChange={event => setDraft({ ...draft, date_of_birth: event.target.value })} /></Field>
+            <Field label="Giới tính"><select value={draft.gender} onChange={event => setDraft({ ...draft, gender: event.target.value as Profile['gender'] })}><option value="">Chưa cập nhật</option><option value="male">Nam</option><option value="female">Nữ</option><option value="other">Khác</option></select></Field>
+            <Field label="Địa chỉ" wide><input autoComplete="street-address" maxLength={500} value={draft.address} onChange={event => setDraft({ ...draft, address: event.target.value })} /></Field>
+            <Field label="Ảnh đại diện (liên kết HTTPS)" wide><input type="url" placeholder="https://…" maxLength={2048} pattern="https://.*" value={draft.avatar_url} onChange={event => setDraft({ ...draft, avatar_url: event.target.value })} /></Field>
+          </div><p className="help">Email đăng nhập được quản lý tại trang Bảo mật tài khoản.</p>
+            <div className="section-actions"><span className="muted">{dirty ? 'Có thay đổi chưa lưu' : 'Hồ sơ đã đồng bộ'}</span>
+              <DoctorButton variant="secondary" disabled={!dirty} onClick={() => setDraft(profileInput(store.profile))}>Bỏ thay đổi</DoctorButton>
+              <DoctorButton type="submit" disabled={!dirty} icon={<Save size={16} />}>{store.pending === 'profile' ? 'Đang lưu…' : 'Lưu hồ sơ'}</DoctorButton></div>
+          </fieldset>
+        </form>
+      </section>
+      <aside className="form-stack"><section className="card">
+        <h2>Thông tin chuyên môn</h2>
+        <dl className="professional-info"><div><dt>Chuyên khoa</dt><dd>{store.specialty?.name || 'Chưa cập nhật'}</dd></div>
+          <div><dt>Kinh nghiệm</dt><dd>{store.doctor.years_experience == null ? 'Chưa cập nhật' : store.doctor.years_experience + ' năm'}</dd></div>
+          <div><dt>Giá khám hiện tại</dt><dd>{money(store.doctor.consultation_fee)}</dd></div></dl>
+        <p className="help">Chuyên khoa, kinh nghiệm và trạng thái hoạt động do quản trị viên quản lý.</p>
+        <form onSubmit={async event => { event.preventDefault(); const values = { ...professional, bio: professional.bio.trim(), room: professional.room.trim() };
+          if (await store.saveProfessional(values)) setProfessional(values); }}>
+          <fieldset disabled={busy} className="form-stack">
+            <Field label="Phòng khám"><input maxLength={100} value={professional.room} onChange={event => setProfessional({ ...professional, room: event.target.value })} /></Field>
+            <Field label="Giá khám (VND)"><input type="number" min={0} max={999999999999} step={1} value={professional.consultation_fee ?? ''} onChange={event => setProfessional({ ...professional, consultation_fee: event.target.value === '' ? null : Number(event.target.value) })} /></Field>
+            <Field label="Giới thiệu bác sĩ"><textarea rows={5} maxLength={4000} value={professional.bio} onChange={event => setProfessional({ ...professional, bio: event.target.value })} /></Field>
+            <DoctorButton type="submit" disabled={!professionalDirty}>{store.pending === 'professional' ? 'Đang lưu…' : 'Lưu thông tin chuyên môn'}</DoctorButton>
+          </fieldset>
+        </form>
+      </section>
+        <section className="card security-card"><ShieldCheck size={25} /><h2>Bảo mật tài khoản</h2><p>Đổi mật khẩu, email và quản lý xác thực hai bước.</p>
+          <Link href="/account/security" className="btn btn-secondary">Mở cài đặt bảo mật</Link></section>
+      </aside>
     </div>
-  );
+  </div>;
 }

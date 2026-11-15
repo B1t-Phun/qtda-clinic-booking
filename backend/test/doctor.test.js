@@ -29,3 +29,34 @@ test('doctor endpoint returns conflict and ownership failures without internal d
     await controller.manageAppointment(f.req,f.res);assert.equal(f.res.statusCode,status);assert.equal(JSON.stringify(f.res.body).includes('private database'),false);
   }
 });
+
+test('doctor profile endpoint rejects another doctor and protected role fields before writing', async () => {
+  const f = fixture({ bio: 'changed' });
+  f.req.params.id = 'other-doctor';
+  await controller.updateDoctorProfile(f.req, f.res);
+  assert.equal(f.res.statusCode, 403);
+  assert.equal(f.calls.length, 0);
+  f.req.params.id = f.req.auth.doctorId; f.req.body = { role: 'admin' };
+  await controller.updateDoctorProfile(f.req, f.res);
+  assert.equal(f.res.statusCode, 400);
+});
+test('appointment detail always includes the session doctor ID in its database filter', async () => {
+  const f = fixture(), filters = [];
+  f.req.query = {};
+  const query = {
+    select() { return query; }, eq(key, value) { filters.push([key, value]); return query; },
+    single: async () => ({ data: null, error: { code: 'PGRST116', message: 'private detail' } }),
+  };
+  f.req.supabase.from = () => query;
+  await controller.getDoctorAppointmentById(f.req, f.res);
+  assert.equal(f.res.statusCode, 404);
+  assert.ok(filters.some(([key, value]) => key === 'doctor_id' && value === f.req.auth.doctorId));
+  assert.equal(JSON.stringify(f.res.body).includes('private detail'), false);
+});
+test('a combined profile save does not partially update tables when the optional RPC is absent', async () => {
+  const f = fixture({ full_name: 'Doctor Test', bio: 'Updated introduction' }, { code: 'PGRST202' });
+  f.req.params.id = f.req.auth.doctorId;
+  await controller.updateDoctorProfile(f.req, f.res);
+  assert.equal(f.res.statusCode, 409);
+  assert.equal(f.calls[0].name, 'doctor_update_profile');
+});

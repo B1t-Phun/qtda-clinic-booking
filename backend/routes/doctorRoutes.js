@@ -14,6 +14,7 @@ router.get('/appointments', doctorController.getDoctorAppointments);
 router.get('/appointments/:id', doctorController.getDoctorAppointmentById);
 router.put('/appointments/:id/status', doctorController.updateAppointmentStatus);
 router.put('/appointments/:id/note', doctorController.updateDoctorNote);
+router.post('/appointments/:id/action', doctorController.manageAppointment);
 
 // 3. Doctor Working Slots CRUD
 router.get('/slots', doctorController.getDoctorSlots);
