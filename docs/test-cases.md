@@ -22,17 +22,19 @@ FR-01 Đăng ký, đăng nhập | FR-02 Admin quản lý bác sĩ | FR-03 Admin 
 | TC-29 | FR-01 | Có tài khoản Google | Bấm nút Google, chọn tài khoản | Đăng nhập thành công, vào trang theo đúng vai trò | Đăng nhập thành công | Pass | Đăng nhập email bị lỗi riêng, xem TC-03 |
 | TC-30 | FR-01 | Đăng nhập Google bằng email chưa có trong hệ thống | Đăng nhập Google | Tự tạo tài khoản vai trò bệnh nhân | Đăng nhập thành công, được tạo tài khoản mới với vai trò bệnh nhân | Pass | Test bằng tài khoản Google, Chrome |
 
-## 2. Admin (FR-02, FR-03, FR-04)
-| TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả thực tế | Pass/Fail | Ghi chú |
-|---|---|---|---|---|---|---|---|
-| TC-07 | FR-02 | Đăng nhập admin | Thêm bác sĩ mới với đủ thông tin | Bác sĩ xuất hiện trong danh sách | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-08 | FR-02 | Đăng nhập admin | Thêm bác sĩ, để trống tên | Báo lỗi, không lưu | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-09 | FR-02 | Có bác sĩ trong danh sách | Sửa thông tin rồi lưu | Thông tin cập nhật đúng | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-10 | FR-02 | Có bác sĩ trong danh sách | Xóa bác sĩ | Bác sĩ biến mất khỏi danh sách | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-11 | FR-03 | Đăng nhập admin | Thêm chuyên khoa mới | Chuyên khoa xuất hiện trong danh sách | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-12 | FR-03 | Đã có một chuyên khoa | Thêm chuyên khoa trùng tên | Báo lỗi trùng tên | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-13 | FR-04 | Có bác sĩ | Tạo khung giờ 9:00 ngày mai cho bác sĩ | Khung giờ được tạo | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
-| TC-14 | FR-04 | Đã có khung giờ 9:00 ngày mai của bác sĩ đó | Tạo lại đúng khung giờ đó | Báo lỗi, không tạo trùng | Chưa test được, không đăng nhập được tài khoản admin do lỗi CAPTCHA | Blocked | Chờ sửa Bug #30 |
+## 2. Admin (FR-02, FR-03, FR-04, FR-10)
+| TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả lần 1 | Pass/Fail lần 1 | Kết quả lần 2 | Pass/Fail lần 2 | Ghi chú |
+|---|---|---|---|---|---|---|---|---|---|
+| TC-11 | FR-03 | Đăng nhập admin | Chuyên khoa > Thêm chuyên khoa, nhập tên `TEST Khoa`, lưu, bấm F5 | Chuyên khoa xuất hiện trong danh sách, số chuyên khoa tăng 1, F5 vẫn còn | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Chuyên khoa xuất hiện trong danh sách, số chuyên khoa tăng 1, F5 vẫn còn | Pass | Đã sửa #30, test lại 15/11 |
+| TC-12 | FR-03 | Đã có chuyên khoa `TEST Khoa` | Thêm chuyên khoa, nhập lại đúng `TEST Khoa`, lưu | Báo lỗi trùng tên, danh sách chỉ có 1 dòng `TEST Khoa` | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Web báo lỗi trùng tên, danh sách chỉ có 1 dòng `TEST Khoa` | Pass | Đã sửa #30, test lại 15/11 |
+| TC-07 | FR-02 | Đăng nhập admin, đã có `TEST Khoa` | Bác sĩ > Thêm bác sĩ, nhập tên `TEST Bác sĩ`, chọn chuyên khoa `TEST Khoa`, điền ô bắt buộc, lưu, bấm F5 | Bác sĩ xuất hiện trong danh sách, F5 vẫn còn | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Bác sĩ xuất hiện trong danh sách, F5 vẫn còn | Pass | Đã sửa #30, test lại 15/11 |
+| TC-08 | FR-02 | Đăng nhập admin | Thêm bác sĩ, để trống ô tên, điền ô khác, lưu | Báo lỗi ở ô tên, không tạo bác sĩ mới | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Web báo lỗi ở ô tên, không tạo bác sĩ mới | Pass | Đã sửa #30, test lại 15/11 |
+| TC-09 | FR-02 | Có `TEST Bác sĩ` trong danh sách | Bấm biểu tượng cây bút, đổi tên thành `TEST Bác sĩ 2`, lưu, bấm F5 | Danh sách hiện tên mới, F5 vẫn là tên mới | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Danh sách hiện tên mới, F5 vẫn là tên mới | Pass | Đã sửa #30, test lại 15/11 |
+| TC-13 | FR-04 | Có `TEST Bác sĩ 2` | Khung giờ > tạo khung giờ, chọn `TEST Bác sĩ 2`, ngày 16/11, giờ 9:00, lưu | Khung giờ hiện đúng bác sĩ, ngày, giờ | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Khung giờ hiện đúng bác sĩ, ngày 16/11, giờ 9:00 | Pass | Đã sửa #30, test lại 15/11 |
+| TC-14 | FR-04 | Đã có khung giờ 9:00 ngày 16/11 của `TEST Bác sĩ 2` | Tạo lại đúng khung giờ đó | Báo lỗi, chỉ còn 1 khung giờ | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Web báo lỗi, chỉ còn 1 khung giờ | Pass | Đã sửa #30, test lại 15/11 |
+| TC-32 | FR-10 | Đăng nhập admin, có `TEST Bác sĩ 2` và khung giờ 9:00 ngày 16/11 còn trống | Bấm Tạo lịch hẹn (góc phải trên), chọn bệnh nhân, chọn `TEST Bác sĩ 2`, ngày 16/11, giờ 9:00, lưu, bấm F5 | Lịch hẹn mới xuất hiện trong trang Lịch hẹn, F5 vẫn còn | Chưa có test case này ở lần 1 | — | Lịch hẹn mới xuất hiện trong trang Lịch hẹn, F5 vẫn còn | Pass | Test case bổ sung, test ngày 15/11 |
+| TC-33 | FR-10 | Đã có lịch hẹn 9:00 ngày 16/11 của `TEST Bác sĩ 2` | Tạo lịch hẹn mới, chọn lại đúng bác sĩ, ngày, giờ đó, lưu | Báo lỗi, không tạo lịch hẹn trùng | Chưa có test case này ở lần 1 | — | Web báo lỗi, không tạo lịch hẹn trùng | Pass | Test case bổ sung, test ngày 15/11 |
+| TC-10 | FR-02 | Có `TEST Bác sĩ 2`, đã xóa các lịch hẹn TEST | Bác sĩ > bấm biểu tượng thùng rác ở `TEST Bác sĩ 2`, xác nhận, bấm F5 | Bác sĩ biến mất khỏi danh sách | Chưa test được, không đăng nhập được admin do lỗi CAPTCHA | Blocked | Bác sĩ biến mất khỏi danh sách, F5 vẫn không thấy | Pass | Đã sửa #30, test lại 15/11 |
 
 ## 3. Bệnh nhân (FR-05, FR-06, FR-07)
 | TC | FR | Tiền điều kiện | Các bước | Kết quả mong đợi | Kết quả thực tế | Pass/Fail | Ghi chú |
