@@ -155,3 +155,8 @@ vite.config.ts.timestamp-*
 .history/
 *.local
 
+# Presentation files (local presentation only)
+*.pptx
+ClinicCare_Slide_Thuyet_Trinh.html
+
+
