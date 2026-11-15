@@ -23,6 +23,7 @@ import { PageHeader, Card, Skeleton, Button } from '@/components/ui/core';
 import { Field, Input, Textarea } from '@/components/ui/form';
 import { useToast } from '@/components/ui/overlay';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import { PatientProfile } from '../client-types';
 
 // Avatar mẫu thân thiện cho bệnh nhân lựa chọn nhanh
@@ -140,28 +141,22 @@ export default function PatientProfilePage() {
     }
   }, [toast]);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     let active = true;
-    const supabase = createClient();
 
     async function init() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          if (active) {
-            setUserId(null);
-            setLoading(false);
-          }
-          return;
-        }
-
+      if (user?.id) {
         if (active) {
           setUserId(user.id);
           await fetchProfile(user.id, user.email);
         }
-      } catch (err) {
-        console.error('Auth error in profile page:', err);
-        if (active) setLoading(false);
+      } else {
+        if (active) {
+          setUserId(null);
+          setLoading(false);
+        }
       }
     }
 
@@ -169,7 +164,7 @@ export default function PatientProfilePage() {
     return () => {
       active = false;
     };
-  }, [fetchProfile]);
+  }, [user, fetchProfile]);
 
   // Compute profile completeness percentage
   const completeness = useMemo(() => {

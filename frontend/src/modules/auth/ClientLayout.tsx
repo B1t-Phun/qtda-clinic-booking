@@ -36,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/client/specialties', label: 'Chuyên khoa', icon: Layers },
   { href: '/client/booking', label: 'Đặt lịch', icon: CalendarPlus },
   { href: '/client/appointments', label: 'Lịch hẹn', icon: ClipboardList },
+  { href: '/client/profile', label: 'Hồ sơ cá nhân', icon: User },
 ];
 
 function ClientHeader() {
