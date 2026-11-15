@@ -80,3 +80,5 @@ Thiết lập Email, mẫu email, TOTP, URL và giới hạn nằm tại supabas
 các nhóm chưa có secret giữ cấu hình hiện tại.
 
 Kiểm tra cấu hình bằng `npm run test:config`; kiểm tra project từ xa bằng `npm run audit:supabase`.
+
+Hồ sơ bác sĩ/bệnh nhân, tải ảnh và kiểm thử: [PROFILE_SETUP.md](docs/PROFILE_SETUP.md).

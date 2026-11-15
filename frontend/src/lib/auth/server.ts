@@ -46,7 +46,7 @@ export async function readIdentity(client: ServerClient, options: { adminSession
   if (aalError) throw aalError;
   if (user.factors?.some((factor) => factor.status === 'verified') && aal.currentLevel !== 'aal2') return { user: null, needsMfa: true };
   const { data: profile, error: profileError } = await client.from('profiles')
-    .select('id,email,full_name,role,phone').eq('id', user.id).single();
+    .select('id,email,full_name,role,phone,avatar_url').eq('id', user.id).single();
   if (profileError && profileError.code !== 'PGRST116') throw profileError;
   if (!profile || !isRole(profile.role)) return { user: null, needsMfa: false };
   if (profile.role === 'doctor') {
@@ -62,7 +62,7 @@ export async function readIdentity(client: ServerClient, options: { adminSession
   }
   return { needsMfa: false, user: {
     id: user.id, email: user.email || '', fullName: profile.full_name,
-    role: profile.role, phone: profile.phone || undefined,
+    role: profile.role, phone: profile.phone || undefined, ...(profile.avatar_url ? { avatarUrl: profile.avatar_url } : {}),
   } satisfies AuthUser };
 }
 

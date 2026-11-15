@@ -6,6 +6,7 @@ export interface AuthUser {
   fullName: string;
   role: UserRole;
   phone?: string;
+  avatarUrl?: string;
 }
 
 export interface LoginFormState {
