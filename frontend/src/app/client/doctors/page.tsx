@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarPlus,
   MapPin,
@@ -33,6 +33,7 @@ import {
 } from '../client-types';
 
 function DoctorListContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialSpecialty = searchParams.get('specialty') || 'all';
 
@@ -45,6 +46,21 @@ function DoctorListContent() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>(initialSpecialty);
+
+  // Đồng bộ selectedSpecialty mỗi khi query param trên URL thay đổi (VD: bấm từ trang Chuyên khoa)
+  useEffect(() => {
+    const urlSpecialty = searchParams.get('specialty');
+    setSelectedSpecialty(urlSpecialty || 'all');
+  }, [searchParams]);
+
+  const handleSpecialtyChange = (specId: string) => {
+    setSelectedSpecialty(specId);
+    if (specId === 'all') {
+      router.replace('/client/doctors', { scroll: false });
+    } else {
+      router.replace(`/client/doctors?specialty=${encodeURIComponent(specId)}`, { scroll: false });
+    }
+  };
 
   // Selected doctor for detail modal
   const [detailDoctor, setDetailDoctor] = useState<DoctorItem | null>(null);
@@ -126,10 +142,15 @@ function DoctorListContent() {
 
       // Filter by specialty
       if (selectedSpecialty !== 'all') {
-        if (
-          String(doc.specialty_id) !== selectedSpecialty &&
-          String(specialty?.id) !== selectedSpecialty
-        ) {
+        const docSpecId = String(doc.specialty_id);
+        const specObjId = String(specialty?.id);
+        const specName = specialty?.name ? normalize(specialty.name) : '';
+        const target = normalize(selectedSpecialty);
+
+        const matchId = docSpecId === selectedSpecialty || specObjId === selectedSpecialty;
+        const matchName = specName && (specName === target || specName.includes(target) || target.includes(specName));
+
+        if (!matchId && !matchName) {
           return false;
         }
       }
@@ -178,7 +199,7 @@ function DoctorListContent() {
               <Filter className="size-4 text-slate-400 shrink-0 hidden sm:block" />
               <Select
                 value={selectedSpecialty}
-                onChange={(e) => setSelectedSpecialty(e.target.value)}
+                onChange={(e) => handleSpecialtyChange(e.target.value)}
                 className="w-full"
                 aria-label="Lọc theo chuyên khoa"
               >
@@ -198,7 +219,7 @@ function DoctorListContent() {
           <span className="text-muted shrink-0 mr-1 font-medium">Chuyên khoa nhanh:</span>
           <button
             type="button"
-            onClick={() => setSelectedSpecialty('all')}
+            onClick={() => handleSpecialtyChange('all')}
             className={`rounded-full px-3 py-1 font-medium transition-colors shrink-0 ${
               selectedSpecialty === 'all'
                 ? 'bg-primary text-white shadow-xs'
@@ -214,7 +235,7 @@ function DoctorListContent() {
               <button
                 key={specId}
                 type="button"
-                onClick={() => setSelectedSpecialty(specId)}
+                onClick={() => handleSpecialtyChange(specId)}
                 className={`rounded-full px-3 py-1 font-medium transition-colors shrink-0 ${
                   isSelected
                     ? 'bg-primary text-white shadow-xs'
