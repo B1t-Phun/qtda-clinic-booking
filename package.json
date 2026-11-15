@@ -5,6 +5,8 @@
     "dotenv": "^18.0.10"
   },
   "scripts": {
+    "dev": "npm --prefix frontend run dev --",
+    "dev:backend": "npm --prefix backend run dev",
     "audit:supabase": "node scripts/audit-supabase.mjs",
     "test:config": "node --test scripts/*.test.mjs",
     "supabase:configure": "node scripts/configure-supabase.mjs",
