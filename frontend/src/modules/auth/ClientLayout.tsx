@@ -17,6 +17,7 @@ import {
   Phone,
   Clock,
   MapPin,
+  UserRound,
 } from 'lucide-react';
 import { ToastProvider } from '@/components/ui/overlay';
 import { Button, Avatar } from '@/components/ui/core';
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/client/specialties', label: 'Chuyên khoa', icon: Layers },
   { href: '/client/booking', label: 'Đặt lịch', icon: CalendarPlus },
   { href: '/client/appointments', label: 'Lịch hẹn', icon: ClipboardList },
+  { href: '/client/profile', label: 'Hồ sơ', icon: UserRound },
 ];
 
 function ClientHeader() {
