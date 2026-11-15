@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/lib/auth/context';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   type Appointment,
   type AppointmentStatus,
@@ -35,7 +36,6 @@ interface DoctorStoreContextType {
   addSlots: (newSlots: TimeSlot[]) => void;
   setProfile: (profile: Profile) => void;
   toast: (text: string) => void;
-  setLoggedIn: (val: boolean) => void;
   logout: () => void;
 }
 
@@ -44,35 +44,31 @@ const STORAGE_KEY = 'clinicbooking-doctor-db-v1';
 const DoctorContext = createContext<DoctorStoreContextType | null>(null);
 
 export function DoctorProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(true);
-  const [profile, setProfileState] = useState<Profile>(initialDoctorProfile);
+  const [initial] = useState(() => {
+    const defaults = createMockData();
+    let saved: Partial<{ appointments: Appointment[]; slots: TimeSlot[]; profile: Profile }> = {};
+    if (typeof window !== 'undefined') {
+      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; }
+      catch { /* Use the default display data if the saved snapshot is invalid. */ }
+    }
+    return {
+      appointments: Array.isArray(saved.appointments) ? saved.appointments : defaults.appointments,
+      slots: Array.isArray(saved.slots) ? saved.slots : defaults.timeSlots,
+      profile: saved.profile && typeof saved.profile === 'object' ? saved.profile : initialDoctorProfile,
+    };
+  });
+  const { user: authUser, logout } = useAuth();
+  const loggedIn = authUser.role === 'doctor';
+  const [profile, setProfileState] = useState<Profile>(initial.profile);
   const [doctor] = useState<Doctor>(defaultDoctor);
   const [patients] = useState<Profile[]>(defaultPatients);
-  const [appointments, setAppointments] = useState<Appointment[]>(() => createMockData().appointments);
-  const [slots, setSlots] = useState<TimeSlot[]>(() => createMockData().timeSlots);
+  const [appointments, setAppointments] = useState<Appointment[]>(initial.appointments);
+  const [slots, setSlots] = useState<TimeSlot[]>(initial.slots);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [toasts, setToasts] = useState<ToastData[]>([]);
 
-  // Load persisted state on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.appointments) setAppointments(parsed.appointments);
-        if (parsed.slots) setSlots(parsed.slots);
-        if (parsed.profile) setProfileState(parsed.profile);
-      }
-    } catch {
-      // ignore
-    }
-    setMounted(true);
-  }, []);
-
   // Save changes to localStorage
   useEffect(() => {
-    if (!mounted) return;
     try {
       localStorage.setItem(
         STORAGE_KEY,
@@ -85,7 +81,7 @@ export function DoctorProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-  }, [appointments, slots, profile, mounted]);
+  }, [appointments, slots, profile]);
 
   const toast = (text: string) => {
     const id = Date.now();
@@ -142,41 +138,13 @@ export function DoctorProvider({ children }: { children: React.ReactNode }) {
     toast('Đã lưu thay đổi hồ sơ');
   };
 
-  const logout = () => {
-    setLoggedIn(false);
-  };
 
-  const value = useMemo(
-    () => ({
-      profile,
-      doctor,
-      patients,
-      appointments,
-      slots,
-      selectedAppointment,
-      toasts,
-      loggedIn,
-      setSelectedAppointment,
-      updateStatus,
-      updateNote,
-      deleteSlot,
-      addSlots,
-      setProfile,
-      toast,
-      setLoggedIn,
-      logout,
-    }),
-    [
-      profile,
-      doctor,
-      patients,
-      appointments,
-      slots,
-      selectedAppointment,
-      toasts,
-      loggedIn,
-    ]
-  );
+
+  const value: DoctorStoreContextType = {
+    profile: { ...profile, id: authUser.id, email: authUser.email, full_name: authUser.fullName, phone: authUser.phone || '', role: authUser.role },
+    doctor, patients, appointments, slots, selectedAppointment, toasts, loggedIn,
+    setSelectedAppointment, updateStatus, updateNote, deleteSlot, addSlots, setProfile, toast, logout,
+  };
 
   return <DoctorContext.Provider value={value}>{children}</DoctorContext.Provider>;
 }

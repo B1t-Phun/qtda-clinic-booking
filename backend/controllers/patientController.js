@@ -221,7 +221,7 @@ exports.createAppointment = async (req, res) => {
     }
 
     // 1. Kiểm tra khung giờ tồn tại
-    const { data: slot, error: slotErr } = await supabase
+    const { data: slot, error: slotErr } = await req.supabase
       .from('time_slots')
       .select('*')
       .eq('id', slot_id)
@@ -260,7 +260,7 @@ exports.createAppointment = async (req, res) => {
     }
 
     // 2b. Chống bệnh nhân tự đặt trùng khung giờ (cùng ngày, giao thời gian)
-    const { data: existingAppts, error: overlapErr } = await supabase
+    const { data: existingAppts, error: overlapErr } = await req.supabase
       .from('appointments')
       .select('id, slot:time_slots (slot_date, start_time, end_time)')
       .eq('patient_id', patient_id)
@@ -286,7 +286,7 @@ exports.createAppointment = async (req, res) => {
     const normalizedReason =
       typeof reason === 'string' && reason.trim() ? reason.trim() : 'Khám bệnh';
 
-    const { data: appointment, error: insertErr } = await supabase
+    const { data: appointment, error: insertErr } = await req.supabase
       .from('appointments')
       .insert([
         {
@@ -339,7 +339,7 @@ exports.getMyAppointments = async (req, res) => {
       });
     }
 
-    let query = supabase
+    let query = req.supabase
       .from('appointments')
       .select(`
         id,
@@ -418,7 +418,7 @@ exports.cancelAppointment = async (req, res) => {
     }
 
     // 1. Kiểm tra lịch hẹn tồn tại
-    const { data: appt, error: fetchErr } = await supabase
+    const { data: appt, error: fetchErr } = await req.supabase
       .from('appointments')
       .select('*')
       .eq('id', id)
@@ -448,7 +448,7 @@ exports.cancelAppointment = async (req, res) => {
     }
 
     // 4. Cập nhật trạng thái thành 'cancelled' (trigger sync_slot_booked sẽ tự động giải phóng time_slot)
-    const { data: updatedAppt, error: updateErr } = await supabase
+    const { data: updatedAppt, error: updateErr } = await req.supabase
       .from('appointments')
       .update({
         status: 'cancelled',

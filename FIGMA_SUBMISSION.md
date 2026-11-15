@@ -38,7 +38,7 @@
 ---
 
 ## 3. Backend REST API & Supabase CRUD (`backend/`)
-Đã khởi tạo hoàn chỉnh dự án Backend tại thư mục `backend/` kết nối trực tiếp với Supabase PostgreSQL theo schema `database_schema.sql` và file `.env.local`:
+Đã khởi tạo hoàn chỉnh dự án Backend tại thư mục `backend/` kết nối với Supabase qua SDK/API theo schema `database_schema.sql` cấu hình trong Supabase SQL Editor và file `.env.local`:
 
 ### Cấu trúc Backend:
 * `server.js`: Khởi chạy Express server tại `http://localhost:5000`, hỗ trợ CORS, logging, healthcheck.

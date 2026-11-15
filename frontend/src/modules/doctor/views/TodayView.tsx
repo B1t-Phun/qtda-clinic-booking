@@ -2,23 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {
-  AlertCircle,
-  CalendarDays,
-  Clock,
-  Clock3,
-  CheckCircle2,
-  ChevronRight,
-  Plus,
-  Stethoscope,
-  UserCheck,
-  Users,
-} from 'lucide-react';
-import {
-  Avatar,
-  StatusBadge,
-  DoctorButton,
-} from '../components/DoctorUI';
+import { Clock, Plus } from 'lucide-react';
+
+import { StatusBadge } from '../components/DoctorUI';
+
 import { useDoctorStore } from '../store/store';
 import {
   todayISO,
@@ -46,7 +33,6 @@ export default function TodayView() {
   const completedCount = displayApps.filter((a) => a.status === 'completed').length;
   const cancelledCount = displayApps.filter((a) => a.status === 'cancelled').length;
 
-  const nowTime = typeof window === 'undefined' ? '00:00' : new Date().toTimeString().slice(0, 5);
 
   // Active / examining appointment
   const currentExamining =

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { Bell, CalendarPlus, ChevronDown, LogOut, MoreHorizontal, Search, ServerCrash, UserRound, X, CalendarDays, LayoutDashboard, Stethoscope, Users } from 'lucide-react'
 import { NAV } from './nav'
 import { navigate } from '@/lib/router'
@@ -95,11 +94,6 @@ function Sidebar({ path }: { path: string }) {
       </div>
     </aside>
   )
-}
-
-function MeAvatar({ size = 34 }: { size?: number }) {
-  const { me } = useStore()
-  return <Avatar name={me.full_name} url={me.avatar_url} size={size} className="ring-2 ring-white/20" />
 }
 
 function GlobalSearch({ onDone }: { onDone?: () => void }) {

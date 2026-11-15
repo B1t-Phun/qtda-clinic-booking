@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@hcaptcha/react-hcaptcha": "^2.2.0"
+  },
+  "scripts": {
+    "audit:supabase": "node scripts/audit-supabase.mjs",
+    "test:config": "node --test scripts/*.test.mjs",
+    "supabase:configure": "node scripts/sync-env.mjs && node scripts/configure-supabase.mjs",
+    "env:sync": "node scripts/sync-env.mjs",
+    "supabase:migrate:auth": "node scripts/migrate-auth.mjs"
+  }
+}

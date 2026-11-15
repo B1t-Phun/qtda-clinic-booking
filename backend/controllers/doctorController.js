@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+
 
 // ==========================================
 // 1. DOCTOR APPOINTMENTS CRUD
@@ -9,7 +9,7 @@ exports.getDoctorAppointments = async (req, res) => {
   try {
     const { doctor_id, status, date } = req.query;
 
-    let query = supabase
+    let query = req.supabase
       .from('appointments')
       .select(`
         id,
@@ -69,7 +69,7 @@ exports.getDoctorAppointments = async (req, res) => {
 exports.getDoctorAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase
       .from('appointments')
       .select(`
         *,
@@ -112,7 +112,7 @@ exports.updateAppointmentStatus = async (req, res) => {
     if (cancel_reason !== undefined) updates.cancel_reason = cancel_reason;
     if (doctor_note !== undefined) updates.doctor_note = doctor_note;
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase
       .from('appointments')
       .update(updates)
       .eq('id', id)
@@ -141,7 +141,7 @@ exports.updateDoctorNote = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu doctor_note' });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase
       .from('appointments')
       .update({ doctor_note, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -169,7 +169,7 @@ exports.getDoctorSlots = async (req, res) => {
   try {
     const { doctor_id, date, from_date, to_date } = req.query;
 
-    let query = supabase
+    let query = req.supabase
       .from('time_slots')
       .select('*')
       .order('slot_date', { ascending: true })
@@ -201,7 +201,7 @@ exports.createDoctorSlot = async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase
       .from('time_slots')
       .insert([{ doctor_id, slot_date, start_time, end_time, is_booked: false }])
       .select()
@@ -225,7 +225,7 @@ exports.deleteDoctorSlot = async (req, res) => {
     const { id } = req.params;
 
     // Kiểm tra slot đã có người đặt chưa
-    const { data: slot, error: fetchErr } = await supabase
+    const { data: slot, error: fetchErr } = await req.supabase
       .from('time_slots')
       .select('is_booked')
       .eq('id', id)
@@ -242,7 +242,7 @@ exports.deleteDoctorSlot = async (req, res) => {
       });
     }
 
-    const { error } = await supabase.from('time_slots').delete().eq('id', id);
+    const { error } = await req.supabase.from('time_slots').delete().eq('id', id);
     if (error) throw error;
 
     return res.status(200).json({ success: true, message: 'Đã xóa khung giờ thành công' });
@@ -260,7 +260,7 @@ exports.getDoctorPatients = async (req, res) => {
   try {
     const { doctor_id } = req.query;
 
-    let query = supabase
+    let query = req.supabase
       .from('appointments')
       .select(`
         patient:profiles!appointments_patient_id_fkey (
@@ -316,7 +316,7 @@ exports.getDoctorPatients = async (req, res) => {
 exports.getDoctorProfile = async (req, res) => {
   try {
     const { doctor_id } = req.query;
-    let query = supabase
+    let query = req.supabase
       .from('doctors')
       .select(`
         *,
@@ -348,7 +348,7 @@ exports.updateDoctorProfile = async (req, res) => {
     if (room !== undefined) docUpdates.room = room;
     if (consultation_fee !== undefined) docUpdates.consultation_fee = consultation_fee;
 
-    const { data: updatedDoc, error: docErr } = await supabase
+    const { data: updatedDoc, error: docErr } = await req.supabase
       .from('doctors')
       .update(docUpdates)
       .eq('id', id)
@@ -363,7 +363,7 @@ exports.updateDoctorProfile = async (req, res) => {
       if (full_name) profUpdates.full_name = full_name;
       if (phone) profUpdates.phone = phone;
 
-      await supabase.from('profiles').update(profUpdates).eq('id', updatedDoc.profile_id);
+      await req.supabase.from('profiles').update(profUpdates).eq('id', updatedDoc.profile_id);
     }
 
     return res.status(200).json({
@@ -382,7 +382,7 @@ exports.getDoctorTodayStats = async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     const { doctor_id } = req.query;
 
-    let apptQuery = supabase
+    let apptQuery = req.supabase
       .from('appointments')
       .select(`
         id,

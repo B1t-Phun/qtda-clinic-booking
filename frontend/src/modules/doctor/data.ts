@@ -44,6 +44,18 @@ export interface TimeSlot {
   created_at: string;
 }
 
+export type DoctorAction = 'confirm' | 'check_in' | 'start' | 'complete' | 'cancel' | 'no_show' | 'save_note' | 'reschedule';
+
+export interface DoctorSnapshot {
+  profile: Profile;
+  specialty: Specialty;
+  doctor: Doctor;
+  patients: Profile[];
+  appointments: Appointment[];
+  slots: TimeSlot[];
+  events: any[];
+}
+
 export interface Appointment {
   id: string;
   patient_id: string;
@@ -55,6 +67,8 @@ export interface Appointment {
   cancel_reason: string;
   created_at: string;
   updated_at: string;
+  started_at?: string | null;
+  checked_in_at?: string | null;
 }
 
 export const specialties: Specialty[] = [

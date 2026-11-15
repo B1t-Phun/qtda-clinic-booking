@@ -1,11 +1,11 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Appointment, DB, Doctor, Profile, Role, Specialty, Status, TimeSlot } from './types'
+import { useAuth } from '@/lib/auth/context'
 import { buildSeed } from './seed'
 import { todayISO, toMin, uid } from '@/lib/format'
 
 const KEY = 'clinicbooking-admin-db-v2'
-const AUTH = 'clinicbooking-admin-auth'
 
 export interface ApptView extends Appointment {
   patient: Profile
@@ -37,15 +37,12 @@ function load(): DB {
 }
 
 function useStoreValue() {
-  const [db, setDb] = useState<DB>(buildSeed)
-  const [authed, setAuthed] = useState(() => (typeof window === 'undefined' ? true : sessionStorage.getItem(AUTH) !== '0'))
+  const [db, setDb] = useState<DB>(load)
+  const { user: authUser, logout } = useAuth()
+  const authed = authUser.role === 'admin'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const failNext = useRef(false)
-
-  useEffect(() => {
-    setDb(load())
-  }, [])
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify({ day: todayISO(), db }))
@@ -63,7 +60,11 @@ function useStoreValue() {
     }, 650)
     return () => clearTimeout(t)
   }, [])
-  useEffect(() => (authed ? reload() : undefined), [authed, reload])
+  useEffect(() => {
+    if (!authed) return
+    const timer = setTimeout(() => setLoading(false), 650)
+    return () => clearTimeout(timer)
+  }, [authed])
 
   const simulateError = () => {
     failNext.current = true
@@ -226,41 +227,13 @@ function useStoreValue() {
     return { ok: true }
   }
 
-  const roleChangeBlocker = (p: Profile, role: Role): string | null => {
-    if (p.id === 'u-admin') return 'Không thể tự thay đổi vai trò của chính bạn.'
-    if (p.role === 'doctor') {
-      const doc = db.doctors.find((d) => d.profile_id === p.id)
-      if (doc && db.appointments.some((a) => a.doctor_id === doc.id)) return 'Bác sĩ đã có lịch hẹn. Hãy ngừng hoạt động bác sĩ thay vì đổi vai trò.'
-    }
-    if (p.role === 'patient' && role !== 'patient' && db.appointments.some((a) => a.patient_id === p.id))
-      return 'Bệnh nhân đã có lịch hẹn nên không thể đổi vai trò.'
-    return null
-  }
-  const changeRole = (profileId: string, role: Role, doctorInfo?: { specialty_id: string; consultation_fee: number; room: string }) =>
-    setDb((d) => {
-      const t = now()
-      let doctors = d.doctors.filter((x) => !(x.profile_id === profileId && role !== 'doctor'))
-      if (role === 'doctor' && doctorInfo && !doctors.some((x) => x.profile_id === profileId))
-        doctors = [...doctors, { id: `d-${uid()}`, profile_id: profileId, bio: null, years_experience: 0, is_active: false, created_at: t, ...doctorInfo }]
-      return { ...d, doctors, profiles: d.profiles.map((p) => (p.id === profileId ? { ...p, role, updated_at: t } : p)) }
-    })
-
   const resetData = () => setDb(buildSeed())
-  const login = () => {
-    sessionStorage.setItem(AUTH, '1')
-    setAuthed(true)
-  }
-  const logout = () => {
-    sessionStorage.removeItem(AUTH)
-    setAuthed(false)
-  }
-
   return {
-    db, maps, appts, doctorViews, authed, loading, error, reload, simulateError, login, logout, resetData,
-    me: maps.profiles.get('u-admin')!,
+    db, maps, appts, doctorViews, authed, loading, error, reload, simulateError, logout, resetData,
+    me: { ...maps.profiles.get('u-admin')!, id: authUser.id, email: authUser.email, full_name: authUser.fullName, phone: authUser.phone || null, role: authUser.role },
     confirm, cancel, complete, noShow, reschedule, createAppointment, saveProfile, emailTaken,
     saveDoctor, setDoctorActive, deleteDoctor, slotConflicts, addSlots, deleteSlots, slotLock,
-    saveSpecialty, deleteSpecialty, changeRole, roleChangeBlocker,
+    saveSpecialty, deleteSpecialty,
   }
 }
 

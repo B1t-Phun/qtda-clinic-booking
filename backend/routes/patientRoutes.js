@@ -11,6 +11,10 @@ router.get('/doctors/:id', patientController.getDoctorDetail);
 router.get('/doctors/:id/slots', patientController.getDoctorAvailableSlots);
 router.get('/slots', patientController.getDoctorAvailableSlots);
 
+const { configuredAuth } = require('../middleware/auth');
+const { requireUser, requireRole, bindPatient } = configuredAuth();
+router.use(requireUser, requireRole('patient'), bindPatient);
+
 // 3. Đặt lịch & Lịch hẹn
 router.post('/appointments', patientController.createAppointment);
 router.get('/appointments', patientController.getMyAppointments);

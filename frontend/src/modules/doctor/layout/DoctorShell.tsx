@@ -23,7 +23,7 @@ import {
 import { AppointmentDetailModal } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
 import { initials } from '../utils';
-import LoginView from '../views/LoginView';
+
 
 const emptySubscribe = () => () => {};
 function useIsClient() {
@@ -182,9 +182,7 @@ export function DoctorShell({ children }: { children: React.ReactNode }) {
   const {
     profile,
     doctor,
-    appointments,
     logout,
-    loggedIn,
     selectedAppointment,
     setSelectedAppointment,
     toasts,
@@ -198,9 +196,6 @@ export function DoctorShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!loggedIn) {
-    return <LoginView />;
-  }
 
   const currentDateStr = getFormattedDate();
 
@@ -299,7 +294,7 @@ export function DoctorShell({ children }: { children: React.ReactNode }) {
 
             {/* Doctor account info */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-[#dfe7e7]">
-              <Link href="/doctor/profile" className="flex items-center gap-2.5 no-underline">
+              <Link href="/account/security" className="flex items-center gap-2.5 no-underline">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f5f0] text-[#087f72] text-xs font-bold border border-[#dfe7e7]">
                   {profile.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element

@@ -2,15 +2,12 @@
 
 import React, { useState } from 'react';
 import {
-  CalendarDays,
   Download,
-  MoreHorizontal,
   Plus,
   Search,
 } from 'lucide-react';
 import {
   type Appointment,
-  type AppointmentStatus,
 } from '../data';
 import {
   StatusBadge,
@@ -18,7 +15,8 @@ import {
   SkeletonList,
 } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
-import { todayISO, ageOf, genderLabel } from '../utils';
+import { ageOf, genderLabel } from '../utils';
+
 
 export default function AppointmentsView() {
   const { appointments, slots, patients, setSelectedAppointment } = useDoctorStore();
@@ -117,7 +115,7 @@ export default function AppointmentsView() {
               type="button"
               key={t.id}
               onClick={() => {
-                setTab(t.id as any);
+                setTab(t.id as typeof tab);
                 triggerLoad();
               }}
               className={`flex items-center gap-1.5 py-3.5 px-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${

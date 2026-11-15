@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link'
 import { useState } from 'react'
 import { KeyRound, LogOut, RotateCcw } from 'lucide-react'
 import { useStore } from '@/modules/admin/store/store'
@@ -13,8 +14,6 @@ export default function ProfilePage() {
   const toast = useToast()
   const [f, setF] = useState({ full_name: me.full_name, email: me.email, phone: me.phone ?? '', gender: me.gender ?? '', date_of_birth: me.date_of_birth ?? '', address: me.address ?? '', avatar_url: me.avatar_url ?? '' })
   const [touched, setTouched] = useState(false)
-  const [pw, setPw] = useState({ cur: '', next: '', again: '' })
-  const [pwTouched, setPwTouched] = useState(false)
   const [reset, setReset] = useState(false)
   const e = {
     full_name: f.full_name.trim().length < 2 ? 'Nhập họ và tên' : '',
@@ -22,15 +21,11 @@ export default function ProfilePage() {
     phone: f.phone && !/^0\d{9}$/.test(f.phone) ? 'Số điện thoại gồm 10 số, bắt đầu bằng 0' : '',
     avatar_url: f.avatar_url && !/^https?:\/\//.test(f.avatar_url) ? 'URL phải bắt đầu bằng http(s)://' : '',
   }
-  const pe = {
-    cur: !pw.cur ? 'Nhập mật khẩu hiện tại' : '',
-    next: pw.next.length < 8 ? 'Tối thiểu 8 ký tự' : !/\d/.test(pw.next) || !/[A-Za-z]/.test(pw.next) ? 'Gồm cả chữ và số' : pw.next === pw.cur ? 'Mật khẩu mới phải khác mật khẩu hiện tại' : '',
-    again: pw.again !== pw.next ? 'Mật khẩu nhập lại không khớp' : '',
-  }
   const set = (k: keyof typeof f) => (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: ev.target.value })
   const err = (k: keyof typeof e) => (touched ? e[k] : '')
   return (
     <div className="animate-fade-in">
+      <Link href="/account/security" className="mb-4 inline-block text-sm text-blue-600">Mật khẩu và xác thực hai bước</Link>
       <PageHeader title="Hồ sơ cá nhân" description={<>Cập nhật lần cuối <span className="num">{fmtDateTime(me.updated_at)}</span></>} actions={<Button variant="secondary" className="text-[#B91C1C]" icon={<LogOut className="size-4" />} onClick={logout}>Đăng xuất</Button>} />
       <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
         <Card className="p-5">
@@ -59,17 +54,8 @@ export default function ProfilePage() {
         <div className="space-y-4">
           <Card className="p-5">
             <h2 className="flex items-center gap-2 font-semibold"><KeyRound className="size-4 text-primary" />Đổi mật khẩu</h2>
-            <div className="mt-4 space-y-3">
-              <Field label="Mật khẩu hiện tại" required error={pwTouched ? pe.cur : ''}><Input type="password" autoComplete="current-password" value={pw.cur} onChange={(ev) => setPw({ ...pw, cur: ev.target.value })} /></Field>
-              <Field label="Mật khẩu mới" required error={pwTouched ? pe.next : ''} hint="Tối thiểu 8 ký tự, gồm chữ và số"><Input type="password" autoComplete="new-password" value={pw.next} onChange={(ev) => setPw({ ...pw, next: ev.target.value })} /></Field>
-              <Field label="Nhập lại mật khẩu mới" required error={pwTouched ? pe.again : ''}><Input type="password" autoComplete="new-password" value={pw.again} onChange={(ev) => setPw({ ...pw, again: ev.target.value })} /></Field>
-            </div>
-            <Button className="mt-4 w-full" onClick={() => {
-              setPwTouched(true)
-              if (Object.values(pe).some(Boolean)) return
-              setPw({ cur: '', next: '', again: '' }); setPwTouched(false)
-              toast({ tone: 'success', title: 'Đã đổi mật khẩu' })
-            }}>Cập nhật mật khẩu</Button>
+            <p className="mt-3 text-sm text-muted">Quản lý mật khẩu và Authenticator trong phần bảo mật tài khoản.</p>
+            <Link href="/account/security" className="mt-4 inline-block text-sm font-semibold text-blue-600">Mở cài đặt bảo mật</Link>
           </Card>
           <Card className="p-5">
             <h2 className="font-semibold">Dữ liệu mẫu</h2>

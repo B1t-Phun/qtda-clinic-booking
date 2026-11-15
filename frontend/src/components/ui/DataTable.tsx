@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import { cx } from '@/lib/format'
 import { Button, EmptyState, ErrorState, Skeleton } from './core'
@@ -38,8 +38,8 @@ export function DataTable<T>({
     })
   }, [rows, sort, columns])
   const pages = Math.max(1, Math.ceil(sorted.length / size))
-  useEffect(() => { if (page >= pages) setPage(0) }, [pages, page])
-  const view = sorted.slice(page * size, page * size + size)
+  const currentPage = page >= pages ? 0 : page
+  const view = sorted.slice(currentPage * size, currentPage * size + size)
 
   const selectableRows = view.filter((r) => !isSelectable || isSelectable(r))
   const allOn = selectableRows.length > 0 && selectableRows.every((r) => selected?.has(rowKey(r)))
@@ -51,7 +51,8 @@ export function DataTable<T>({
   }
   const toggle = (r: T, v: boolean) => {
     const s = new Set(selected)
-    v ? s.add(rowKey(r)) : s.delete(rowKey(r))
+    if (v) s.add(rowKey(r))
+    else s.delete(rowKey(r))
     onSelectedChange?.(s)
   }
   const clickSort = (c: Column<T>) => {
@@ -166,16 +167,16 @@ export function DataTable<T>({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-13 text-muted">
         <div className="flex items-center gap-2">
           <span>
-            <span className="num font-semibold text-ink">{sorted.length === 0 ? 0 : page * size + 1}–{Math.min(sorted.length, (page + 1) * size)}</span> / <span className="num">{sorted.length}</span>
+            <span className="num font-semibold text-ink">{sorted.length === 0 ? 0 : currentPage * size + 1}–{Math.min(sorted.length, (currentPage + 1) * size)}</span> / <span className="num">{sorted.length}</span>
           </span>
           <select aria-label="Số dòng mỗi trang" value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(0) }} className="hidden h-8 rounded-md border border-line bg-white px-2 text-13 sm:block">
             {[10, 20, 50].map((n) => <option key={n} value={n}>{n} / trang</option>)}
           </select>
         </div>
         <div className="flex items-center gap-1">
-          <button aria-label="Trang trước" disabled={page === 0} onClick={() => setPage(page - 1)} className="flex size-8 items-center justify-center rounded-md border border-line bg-white disabled:opacity-40 hover:bg-slate-50"><ChevronLeft className="size-4" /></button>
-          <span className="num px-2 text-ink">{page + 1} / {pages}</span>
-          <button aria-label="Trang sau" disabled={page >= pages - 1} onClick={() => setPage(page + 1)} className="flex size-8 items-center justify-center rounded-md border border-line bg-white disabled:opacity-40 hover:bg-slate-50"><ChevronRight className="size-4" /></button>
+          <button aria-label="Trang trước" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} className="flex size-8 items-center justify-center rounded-md border border-line bg-white disabled:opacity-40 hover:bg-slate-50"><ChevronLeft className="size-4" /></button>
+          <span className="num px-2 text-ink">{currentPage + 1} / {pages}</span>
+          <button aria-label="Trang sau" disabled={currentPage >= pages - 1} onClick={() => setPage(currentPage + 1)} className="flex size-8 items-center justify-center rounded-md border border-line bg-white disabled:opacity-40 hover:bg-slate-50"><ChevronRight className="size-4" /></button>
         </div>
       </div>
     </div>
