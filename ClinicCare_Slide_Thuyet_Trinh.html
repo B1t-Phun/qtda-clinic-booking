@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo cáo Tiến độ Dự án ClinicCare - Slide Deck</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e3a8a;
+      --teal: #0d9488;
+      --navy: #0f172a;
+      --card-bg: #ffffff;
+      --bg: #0b1329;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 24px;
+    }
+    .slide-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      aspect-ratio: 16 / 9;
+      background: #f8fafc;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease;
+    }
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 40px 48px;
+      flex-direction: column;
+      position: relative;
+    }
+    .slide.active {
+      display: flex;
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.99); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .slide-header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+    }
+    .category {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .slide-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -0.5px;
+    }
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      height: 100%;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      height: 100%;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      height: 100%;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-body {
+      font-size: 13px;
+      line-height: 1.65;
+      color: #334155;
+    }
+    .card-body ul {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-body li strong {
+      color: var(--navy);
+    }
+
+    /* Table styles */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    table.data-table th {
+      background: var(--primary-dark);
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    table.data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #334155;
+      vertical-align: top;
+    }
+    table.data-table tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    .badge-pass {
+      background: #dcfce7;
+      color: #16a34a;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 11px;
+    }
+
+    /* Title Slide Special */
+    .title-slide {
+      background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+      color: white;
+      justify-content: center;
+      padding: 60px 64px;
+    }
+    .title-slide .badge-sub {
+      display: inline-block;
+      color: #93c5fd;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .title-slide h1 {
+      font-size: 44px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 12px;
+      color: white;
+    }
+    .title-slide .tagline {
+      font-size: 20px;
+      color: #cbd5e1;
+      margin-bottom: 32px;
+    }
+    .title-slide .meta-box {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px 24px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #e2e8f0;
+      backdrop-filter: blur(8px);
+    }
+    .title-slide .meta-box strong {
+      color: #93c5fd;
+    }
+    .title-slide .meta-box a {
+      color: #67e8f9;
+      text-decoration: none;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 20px;
+      color: white;
+      font-size: 14px;
+    }
+    .btn {
+      background: #1e293b;
+      color: white;
+      border: 1px solid #334155;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .hint {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="slide-wrapper" id="slideDeck">
+    <!-- SLIDE 1 -->
+    <div class="slide title-slide active" data-index="1">
+      <div style="border-left: 5px solid var(--teal); padding-left: 20px;">
+        <span class="badge-sub">HỌC PHẦN: QUẢN LÝ DỰ ÁN CÔNG NGHỆ THÔNG TIN</span>
+        <h1>BÁO CÁO TIẾN ĐỘ DỰ ÁN<br>CLINICCARE</h1>
+        <p class="tagline">Nền tảng Quản trị & Đặt lịch Khám bệnh Trực tuyến Thông minh</p>
+      </div>
+      <div class="meta-box" style="margin-top: 20px;">
+        <p>• <strong>Công nghệ:</strong> Next.js 16 (App Router) · Express.js · PostgreSQL 15 (Supabase Database)</p>
+        <p>• <strong>Phân hệ:</strong> Cổng Bệnh nhân (/client) · Bác sĩ (/doctor) · Quản trị viên (/admin)</p>
+        <p>• <strong>Tính năng nổi bật:</strong> Khóa chống trùng lịch GiST, Phân quyền RLS, Hồ sơ bệnh án điện tử</p>
+        <p>• <strong>Repository:</strong> <a href="https://github.com/B1t-Phun/qtda-clinic-booking" target="_blank">github.com/B1t-Phun/qtda-clinic-booking</a></p>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide" data-index="2">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">1. Bối cảnh, Vấn đề Thực tế & Mục tiêu Dự án</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2">
+          <div class="card" style="border-color: #ef4444;">
+            <div class="card-title" style="color: #dc2626;">⚠️ VẤN ĐỀ THỰC TẾ (PAIN POINTS)</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>Thời gian chờ đợi kéo dài:</strong> Bệnh nhân mất từ 2 - 3 giờ chỉ để bốc số thứ tự và chờ đến lượt tại phòng khám truyền thống.</li>
+                <li><strong>Thiếu minh bạch thông tin:</strong> Người bệnh khó tra cứu lịch trực, trình độ chuyên môn, chi phí khám trước khi đến.</li>
+                <li><strong>Quản lý lịch thủ công dễ gây sai sót:</strong> Ghi sổ hoặc dùng bảng tính Excel phân tán dễ dẫn đến trùng lịch (double-booking).</li>
+                <li><strong>Bác sĩ bị động:</strong> Không nắm trước hồ sơ y tế và lý do khám của bệnh nhân để chuẩn bị kế hoạch khám chu đáo.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">🎯 GIẢI PHÁP TỔNG THỂ CỦA CLINICCARE</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>Đặt lịch 3 bước trực quan trong 1 phút:</strong> Bệnh nhân chủ động chọn chuyên khoa, bác sĩ và khung giờ còn trống nhanh chóng.</li>
+                <li><strong>Cơ chế chống trùng Slot tuyệt đối:</strong> Áp dụng khóa giao dịch và ràng buộc GiST Exclusion Constraint trực tiếp tại database.</li>
+                <li><strong>Phân quyền 3 vai trò độc lập:</strong> Cổng Bệnh nhân, Bác sĩ, Quản trị viên được bảo vệ nghiêm ngặt bằng RLS và HttpOnly Cookie.</li>
+                <li><strong>Trải nghiệm hiện đại & Đa nền tảng:</strong> Giao diện Responsive chuẩn Tailwind CSS tương thích từ điện thoại 375px đến máy tính để bàn.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 2 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide" data-index="3">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">2. Kiến trúc Hệ thống Tổng thể (3-Tier Architecture)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">CLIENT TIER (GIAO DIỆN)</div>
+            <div style="background: #eff6ff; color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 12px;">FRONTEND · PORT 3000</div>
+            <div class="card-body">
+              <ul>
+                <li>• Next.js 16 (App Router) với Server & Client Components.</li>
+                <li>• TypeScript nghiêm ngặt, kiểm soát 100% type safety.</li>
+                <li>• Tailwind CSS Responsive từ 375px đến Desktop.</li>
+                <li>• 3 Cổng tương tác: /client, /doctor, /admin.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">APPLICATION TIER (NGHIỆP VỤ)</div>
+            <div style="background: #f0fdfa; color: var(--teal); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 12px;">BACKEND API · PORT 5000</div>
+            <div class="card-body">
+              <ul>
+                <li>• Node.js & Express.js RESTful API endpoints.</li>
+                <li>• Modular Controllers: auth, patient, doctor, booking.</li>
+                <li>• Middleware: JWT Auth, Rate Limiter, CORS an toàn.</li>
+                <li>• Xử lý nghiệp vụ ca khám, chuyển tiếp trạng thái chuẩn.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div class="card-title" style="color: var(--primary-dark);">DATA TIER (CƠ SỞ DỮ LIỆU)</div>
+            <div style="background: #f1f5f9; color: var(--navy); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 12px;">POSTGRESQL 15 (SUPABASE)</div>
+            <div class="card-body">
+              <ul>
+                <li>• PostgreSQL 15 quản trị đám mây trên Supabase.</li>
+                <li>• Row Level Security (RLS) bảo vệ từng hàng dữ liệu.</li>
+                <li>• Khóa GiST Exclusion Constraint chống trùng lịch.</li>
+                <li>• B-Tree Index tối ưu hóa truy vấn slot rảnh tức thì.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 3 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide" data-index="4">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">3. Thiết kế Cơ sở Dữ liệu & Mô hình Quan hệ (ERD)</div>
+      </div>
+      <div class="slide-content">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 15%;">Bảng dữ liệu</th>
+              <th style="width: 35%;">Mục đích & Phạm vi</th>
+              <th style="width: 25%;">Khóa ngoại / Quan hệ</th>
+              <th style="width: 25%;">Ràng buộc & Bảo mật RLS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>profiles</strong></td>
+              <td>Thông tin tài khoản chung (bệnh nhân, bác sĩ, admin).</td>
+              <td><code>id -> auth.users.id (1:1)</code></td>
+              <td>CHECK role (patient, doctor, admin); RLS theo user_id.</td>
+            </tr>
+            <tr>
+              <td><strong>specialties</strong></td>
+              <td>Danh mục chuyên khoa (Nội khoa, Tim mạch, Da liễu...).</td>
+              <td><code>id (PK), slug (UNIQUE)</code></td>
+              <td>Công khai đọc; chỉ Admin có quyền thêm sửa xóa.</td>
+            </tr>
+            <tr>
+              <td><strong>doctors</strong></td>
+              <td>Hồ sơ chuyên môn bác sĩ, học vị, kinh nghiệm, giá khám.</td>
+              <td><code>profile_id, specialty_id</code></td>
+              <td>is_active kiểm soát nhận lịch; liên kết 1:1 với profile.</td>
+            </tr>
+            <tr>
+              <td><strong>working_hours</strong></td>
+              <td>Khung giờ khám theo ngày trong tuần (day_of_week 0-6).</td>
+              <td><code>doctor_id -> doctors.id</code></td>
+              <td>start_time < end_time, slot_duration mặc định 30 phút.</td>
+            </tr>
+            <tr>
+              <td><strong>appointments</strong></td>
+              <td>Bảng trọng tâm lưu lịch hẹn khám, triệu chứng và tiến trình.</td>
+              <td><code>patient_id, doctor_id, specialty_id</code></td>
+              <td>CHECK status; Khóa GiST chống trùng ca.</td>
+            </tr>
+            <tr>
+              <td><strong>medical_records</strong></td>
+              <td>Hồ sơ bệnh án điện tử, chẩn đoán, toa thuốc và dặn dò.</td>
+              <td><code>appointment_id (1:1), doctor_id</code></td>
+              <td>Bác sĩ phụ trách mới có quyền lập; bệnh nhân xem lịch sử.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 4 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 -->
+    <div class="slide" data-index="5">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">4. Hệ thống Xác thực & Phân quyền 3 Vai trò (RBAC & RLS)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">BỆNH NHÂN (PATIENT)</div>
+            <div class="card-body">
+              <ul>
+                <li>• Cổng truy cập: <code>/client/*</code></li>
+                <li>• Đăng ký, đăng nhập an toàn bằng Cookie phiên HttpOnly.</li>
+                <li>• Tự do tra cứu danh bạ bác sĩ, chuyên khoa và giá khám.</li>
+                <li>• Đặt lịch hẹn 3 bước và hủy lịch khi có việc bận.</li>
+                <li>• Xem và cập nhật thông tin cá nhân kèm avatar.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">BÁC SĨ (DOCTOR)</div>
+            <div class="card-body">
+              <ul>
+                <li>• Cổng truy cập: <code>/doctor/*</code></li>
+                <li>• Đăng nhập bảo mật vào dashboard phòng khám riêng.</li>
+                <li>• Quản lý lịch hẹn theo ngày, tuần với bộ lọc trạng thái.</li>
+                <li>• Tiếp nhận bệnh nhân: Đổi trạng thái ca sang "in_progress".</li>
+                <li>• Lập bệnh án điện tử, kê đơn thuốc và dặn dò sau khám.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div class="card-title" style="color: var(--primary-dark);">QUẢN TRỊ VIÊN (ADMIN)</div>
+            <div class="card-body">
+              <ul>
+                <li>• Cổng truy cập: <code>/admin/*</code></li>
+                <li>• Quản lý danh mục chuyên khoa và biểu giá khám.</li>
+                <li>• Quản lý danh sách bác sĩ, phân công ca trực.</li>
+                <li>• Giám sát toàn diện mọi lịch hẹn trên toàn phòng khám.</li>
+                <li>• Báo cáo thống kê doanh thu, tỷ lệ hoàn tất ca khám.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 5 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 -->
+    <div class="slide" data-index="6">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">5. Phân hệ Bệnh nhân (Client Portal - /client)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2" style="grid-template-rows: 1fr 1fr; gap: 16px;">
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">1. Đặt lịch khám 3 bước trực quan</div>
+            <div class="card-body">Chọn Bác sĩ & Chuyên khoa ➔ Chọn Ngày & Giờ rảnh còn trống theo thời gian thực ➔ Điền triệu chứng ban đầu & Xác nhận ngay lập tức.</div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">2. Quản lý Lịch hẹn & Hủy lịch an toàn</div>
+            <div class="card-body">Theo dõi trạng thái hẹn (Chờ duyệt, Xác nhận, Hoàn tất). Bệnh nhân được chủ động hủy lịch khi bận để hoàn trả slot cho người khác.</div>
+          </div>
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div class="card-title" style="color: var(--primary-dark);">3. Hồ sơ Cá nhân & Lịch sử Y tế</div>
+            <div class="card-body">Cập nhật họ tên, điện thoại, ngày sinh, địa chỉ và chọn avatar nhanh. Thống kê trực quan số ca đã khám, ca sắp tới.</div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">4. Tra cứu Danh bạ Bác sĩ & Bảng giá</div>
+            <div class="card-body">Tìm kiếm thông minh theo tên, học vị và kinh nghiệm. Hiển thị chi phí khám minh bạch, giao diện responsive mượt mà trên mobile.</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 6 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 -->
+    <div class="slide" data-index="7">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">6. Phân hệ Bác sĩ (Doctor Portal - /doctor)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2" style="grid-template-rows: 1fr 1fr; gap: 16px;">
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">1. Dashboard Lịch trực & Thống kê Ngày</div>
+            <div class="card-body">Tổng quan các ca khám hôm nay: Đã tiếp đón, Đang khám, Hoàn tất. Xem danh sách bệnh nhân theo thứ tự giờ khám.</div>
+          </div>
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">2. Tiến trình Khám bệnh (Workflow)</div>
+            <div class="card-body">Bác sĩ nhấn "Bắt đầu khám" khi tiếp đón bệnh nhân. Xem lý do khám, tiền sử bệnh án và kiểm soát thời lượng khám thực tế.</div>
+          </div>
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div class="card-title" style="color: var(--primary-dark);">3. Hồ sơ Bệnh án Điện tử (EMR)</div>
+            <div class="card-body">Nhập chẩn đoán bệnh lâm sàng, kê đơn thuốc chi tiết (liều dùng, số lượng, cách dùng) và ghi chú dặn dò sau khám.</div>
+          </div>
+          <div class="card" style="border-color: #16a34a;">
+            <div class="card-title" style="color: #16a34a);">4. Quản lý Hồ sơ Chuyên môn</div>
+            <div class="card-body">Cập nhật tiểu sử, chứng chỉ, khung giờ làm việc theo thứ trong tuần. Tạm ngưng nhận lịch khi có lịch công tác đột xuất.</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 7 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 -->
+    <div class="slide" data-index="8">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">7. Phân hệ Quản trị (Admin Portal - /admin)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2" style="grid-template-rows: 1fr 1fr; gap: 16px;">
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div class="card-title" style="color: var(--primary-dark);">1. Dashboard Trung tâm Điều hành</div>
+            <div class="card-body">Biểu đồ số ca khám theo thời gian thực, doanh thu ước tính và tỷ lệ hoàn tất ca khám trên toàn hệ thống phòng khám.</div>
+          </div>
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">2. Quản lý Đội ngũ Bác sĩ</div>
+            <div class="card-body">Thêm mới, cập nhật thông tin bác sĩ, phân chuyên khoa, gán quyền và theo dõi hiệu suất tiếp nhận ca bệnh.</div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">3. Quản lý Danh mục Chuyên khoa</div>
+            <div class="card-body">Khai báo chuyên khoa mới, cập nhật mô tả, hình ảnh và điều chỉnh giá khám tiêu chuẩn áp dụng cho bệnh nhân.</div>
+          </div>
+          <div class="card" style="border-color: #d97706;">
+            <div class="card-title" style="color: #d97706;">4. Giám sát Lịch hẹn Toàn diện</div>
+            <div class="card-body">Tra cứu và kiểm soát mọi ca khám với bộ lọc đa tiêu chí (ngày khám, bác sĩ, chuyên khoa, trạng thái ca).</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 8 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 -->
+    <div class="slide" data-index="9">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">8. Thuật toán & Cơ chế Chống trùng Lịch (Concurrency Control)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2">
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">🛡️ 3 TẦNG BẢO VỆ CHỐNG TRÙNG LỊCH</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>1. Tầng Giao diện (Client-side):</strong> Tự động vô hiệu hóa (disabled) các slot giờ đã được đặt trước để ngăn bấm nhầm.</li>
+                <li><strong>2. Tầng Backend API:</strong> Kiểm tra tính hợp lệ của slot trong tương lai và chạy trong transaction riêng biệt.</li>
+                <li><strong>3. Tầng Database (PostgreSQL GiST):</strong> Ràng buộc GiST Exclusion Constraint khóa chặt cấp cơ sở dữ liệu, chặn 100% lỗi double-booking khi có truy cập đồng thời.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div class="card-title" style="color: var(--teal);">⚡ KỊCH BẢN CONCURRENCY 2 NGƯỜI ĐẶT CÙNG LÚC</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>Tình huống:</strong> Bệnh nhân A và B cùng bấm đặt slot 09:00 của Bác sĩ Hoàng trong cùng một mili-giây.</li>
+                <li><strong>Xử lý:</strong> Transaction của Bệnh nhân A ghi thành công trước. Transaction của Bệnh nhân B chạm ràng buộc Unique/GiST và bị từ chối với lỗi 409 Conflict.</li>
+                <li><strong>Trải nghiệm (UX):</strong> Toast thông báo ngay: "Khung giờ vừa được đặt bởi người khác. Vui lòng chọn giờ kế tiếp!" mà không làm mất dữ liệu đã điền.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 9 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 10 -->
+    <div class="slide" data-index="10">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">9. Quy trình Nghiệp vụ Đặt khám & Tiếp đón (Workflow)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-4">
+          <div class="card" style="border-color: var(--primary); text-align: center;">
+            <div style="background: var(--primary); color: white; padding: 6px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">BƯỚC 1</div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 8px;">BỆNH NHÂN ĐẶT HẸN</div>
+            <div class="card-body" style="font-size: 11px; text-align: left;">
+              • Chọn bác sĩ & khoa.<br>
+              • Chọn ngày & giờ rảnh.<br>
+              • Nhập triệu chứng.<br>
+              • Trạng thái: <strong>pending</strong>.
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--teal); text-align: center;">
+            <div style="background: var(--teal); color: white; padding: 6px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">BƯỚC 2</div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 8px;">HỆ THỐNG XÁC NHẬN</div>
+            <div class="card-body" style="font-size: 11px; text-align: left;">
+              • Kiểm tra khóa lịch an toàn.<br>
+              • Gửi mã xác nhận ca hẹn.<br>
+              • Hiển thị trên lịch bác sĩ.<br>
+              • Trạng thái: <strong>confirmed</strong>.
+            </div>
+          </div>
+          <div class="card" style="border-color: #d97706; text-align: center;">
+            <div style="background: #d97706; color: white; padding: 6px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">BƯỚC 3</div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 8px;">TIẾP ĐÓN & KHÁM BỆNH</div>
+            <div class="card-body" style="font-size: 11px; text-align: left;">
+              • Bệnh nhân đến phòng khám.<br>
+              • Bác sĩ nhấn "Bắt đầu khám".<br>
+              • Ghi nhận thời gian bắt đầu.<br>
+              • Trạng thái: <strong>in_progress</strong>.
+            </div>
+          </div>
+          <div class="card" style="border-color: #16a34a; text-align: center;">
+            <div style="background: #16a34a; color: white; padding: 6px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">BƯỚC 4</div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 8px;">LẬP BỆNH ÁN & HOÀN TẤT</div>
+            <div class="card-body" style="font-size: 11px; text-align: left;">
+              • Nhập chẩn đoán & đơn thuốc.<br>
+              • Dặn dò tái khám định kỳ.<br>
+              • Lưu hồ sơ EMR vĩnh viễn.<br>
+              • Trạng thái: <strong>completed</strong>.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 10 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 11 -->
+    <div class="slide" data-index="11">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">10. Kiểm thử & Đảm bảo Chất lượng (QA & Test Cases)</div>
+      </div>
+      <div class="slide-content">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 14%;">Mã Test Case</th>
+              <th style="width: 18%;">Chức năng</th>
+              <th style="width: 38%;">Kịch bản kiểm thử</th>
+              <th style="width: 20%;">Kết quả kỳ vọng</th>
+              <th style="width: 10%; text-align: center;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>TC-AUTH-01</strong></td>
+              <td>Đăng ký tài khoản</td>
+              <td>Đăng ký tài khoản bệnh nhân với email mới và mật khẩu mạnh.</td>
+              <td>Tạo tài khoản và gán role "patient".</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-AUTH-02</strong></td>
+              <td>Bảo vệ URL phân quyền</td>
+              <td>Bệnh nhân cố ý nhập link quản trị <code>/admin</code> trên thanh địa chỉ.</td>
+              <td>Chặn truy cập, redirect về <code>/client</code>.</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-BOOK-01</strong></td>
+              <td>Đặt khám slot rảnh</td>
+              <td>Bệnh nhân chọn bác sĩ, ngày và khung giờ rảnh còn trống.</td>
+              <td>Tạo lịch hẹn thành công (confirmed).</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-BOOK-02</strong></td>
+              <td>Chống trùng lịch hẹn</td>
+              <td>2 người dùng cùng lúc bấm đặt 1 slot duy nhất của bác sĩ.</td>
+              <td>1 người thành công, 1 người nhận lỗi 409.</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-CANC-01</strong></td>
+              <td>Hủy lịch khám</td>
+              <td>Bệnh nhân nhấn "Hủy lịch" ca hẹn sắp tới trong danh sách.</td>
+              <td>Trạng thái đổi sang cancelled, giải phóng slot.</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-DOC-01</strong></td>
+              <td>Bác sĩ tiếp nhận ca</td>
+              <td>Bác sĩ nhấn "Bắt đầu khám" khi tiếp đón bệnh nhân.</td>
+              <td>Ca chuyển sang in_progress, ghi nhận started_at.</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>TC-DOC-02</strong></td>
+              <td>Bác sĩ lập bệnh án</td>
+              <td>Bác sĩ nhập chẩn đoán, kê đơn thuốc và nhấn Hoàn tất ca khám.</td>
+              <td>Lưu hồ sơ medical_records, status = completed.</td>
+              <td style="text-align: center;"><span class="badge-pass">PASSED</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 11 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 12 -->
+    <div class="slide" data-index="12">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">11. Kế hoạch Triển khai & Quản lý Dự án (Roadmap)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2" style="grid-template-rows: 1fr 1fr; gap: 16px;">
+          <div class="card" style="border-color: #16a34a;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: var(--navy);">GIAI ĐOẠN 1: KHỞI TẠO & THIẾT KẾ</strong>
+              <span class="badge-pass">100% HOÀN THÀNH</span>
+            </div>
+            <div class="card-body">Khảo sát yêu cầu nghiệp vụ phòng khám ➔ Thiết kế kiến trúc 3-Tier & ERD ➔ Khởi tạo repo GitHub và khung dự án Next.js 16 + Express.js.</div>
+          </div>
+          <div class="card" style="border-color: #16a34a;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: var(--navy);">GIAI ĐOẠN 2: PHÁT TRIỂN CỐT LÕI</strong>
+              <span class="badge-pass">100% HOÀN THÀNH</span>
+            </div>
+            <div class="card-body">Xây dựng module xác thực và phân quyền 3 vai trò ➔ Cổng bệnh nhân đặt lịch ➔ Khóa chống trùng GiST ➔ Cổng bác sĩ khám và lập bệnh án EMR.</div>
+          </div>
+          <div class="card" style="border-color: var(--primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: var(--navy);">GIAI ĐOẠN 3: TÍCH HỢP & BÁO CÁO</strong>
+              <span style="background: #dbeafe; color: var(--primary); font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">HIỆN TẠI (100%)</span>
+            </div>
+            <div class="card-body">Giải quyết toàn bộ xung đột mã nguồn giữa các nhánh ➔ Kiểm thử 31 test case ➔ Tinh chỉnh giao diện responsive ➔ Chuẩn bị slide báo cáo và kịch bản demo.</div>
+          </div>
+          <div class="card" style="border-color: #d97706;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: var(--navy);">GIAI ĐOẠN 4: MỞ RỘNG TƯƠNG LAI</strong>
+              <span style="background: #fef3c7; color: #d97706; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">KẾ HOẠCH</span>
+            </div>
+            <div class="card-body">Tích hợp cổng thanh toán trực tuyến (VNPay/MoMo) ➔ Nhắc lịch qua SMS/Zalo ➔ Chat tư vấn Telemedicine từ xa ➔ Trợ lý AI gợi ý chuyên khoa khám.</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 12 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 13 -->
+    <div class="slide" data-index="13">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">12. Kịch bản Demo Trực tiếp Hệ thống (4 Bước Thao tác)</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-4">
+          <div class="card" style="border-color: var(--primary);">
+            <div style="background: var(--primary); color: white; padding: 4px; border-radius: 4px; font-weight: 700; font-size: 11px; text-align: center; margin-bottom: 6px;">DEMO 1</div>
+            <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">BỆNH NHÂN ĐẶT KHÁM</div>
+            <div style="font-size: 11px; color: var(--primary); font-weight: 600; margin-bottom: 8px;">Role: Patient</div>
+            <div class="card-body" style="font-size: 11px;">
+              1. Đăng nhập tại /login.<br>
+              2. Vào /client/booking.<br>
+              3. Chọn bác sĩ & ngày mai.<br>
+              4. Chọn giờ 09:00 - 09:30.<br>
+              5. Điền triệu chứng & Xác nhận.
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--teal);">
+            <div style="background: var(--teal); color: white; padding: 4px; border-radius: 4px; font-weight: 700; font-size: 11px; text-align: center; margin-bottom: 6px;">DEMO 2</div>
+            <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">BÁC SĨ TIẾP ĐÓN</div>
+            <div style="font-size: 11px; color: var(--teal); font-weight: 600; margin-bottom: 8px;">Role: Doctor</div>
+            <div class="card-body" style="font-size: 11px;">
+              1. Đăng nhập tài khoản bác sĩ.<br>
+              2. Mở /doctor/dashboard.<br>
+              3. Thấy ca hẹn vừa đặt.<br>
+              4. Bấm "Bắt đầu khám".<br>
+              5. Trạng thái ➔ in_progress.
+            </div>
+          </div>
+          <div class="card" style="border-color: #16a34a;">
+            <div style="background: #16a34a; color: white; padding: 4px; border-radius: 4px; font-weight: 700; font-size: 11px; text-align: center; margin-bottom: 6px;">DEMO 3</div>
+            <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">LẬP BỆNH ÁN & HOÀN TẤT</div>
+            <div style="font-size: 11px; color: #16a34a; font-weight: 600; margin-bottom: 8px;">Role: Doctor</div>
+            <div class="card-body" style="font-size: 11px;">
+              1. Nhập chẩn đoán lâm sàng.<br>
+              2. Kê đơn thuốc điện tử.<br>
+              3. Ghi dặn dò bệnh nhân.<br>
+              4. Bấm "Hoàn tất ca khám".<br>
+              5. Lưu hồ sơ y tế vĩnh viễn.
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--primary-dark);">
+            <div style="background: var(--primary-dark); color: white; padding: 4px; border-radius: 4px; font-weight: 700; font-size: 11px; text-align: center; margin-bottom: 6px;">DEMO 4</div>
+            <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">XEM HỒ SƠ & BÁO CÁO</div>
+            <div style="font-size: 11px; color: var(--navy); font-weight: 600; margin-bottom: 8px;">Patient & Admin</div>
+            <div class="card-body" style="font-size: 11px;">
+              1. Bệnh nhân vào /client/profile xem đơn thuốc.<br>
+              2. Admin mở /admin kiểm tra biểu đồ doanh thu.<br>
+              3. Giám sát ca khám toàn viện.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 13 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 14 -->
+    <div class="slide" data-index="14">
+      <div class="slide-header">
+        <div class="category">CLINICCARE · BÁO CÁO TIẾN ĐỘ DỰ ÁN</div>
+        <div class="slide-title">13. Đánh giá Dự án & Hướng Phát triển Tương lai</div>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2">
+          <div class="card" style="border-color: #16a34a;">
+            <div class="card-title" style="color: #16a34a;">🌟 THÀNH TỰU ĐẠT ĐƯỢC</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>Hoàn thành trọn vẹn mục tiêu:</strong> Xây dựng hệ thống đặt lịch đa phân hệ khép kín, an toàn dữ liệu và tối ưu vận hành.</li>
+                <li><strong>Kiến trúc chuẩn mực & bảo mật cao:</strong> Ứng dụng Next.js 16 App Router kết hợp PostgreSQL Supabase, phân quyền RLS chặt chẽ.</li>
+                <li><strong>Chống trùng lịch tuyệt đối:</strong> Khóa giao dịch cấp cơ sở dữ liệu ngăn chặn hoàn toàn lỗi trùng slot khi có nhiều người đặt cùng lúc.</li>
+                <li><strong>Chất lượng mã nguồn:</strong> 0 lỗi TypeScript, đã giải quyết toàn bộ xung đột git và vượt qua 31 test case kiểm thử.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card" style="border-color: var(--primary);">
+            <div class="card-title" style="color: var(--primary);">🚀 HƯỚNG NÂNG CẤP TƯƠNG LAI</div>
+            <div class="card-body">
+              <ul>
+                <li><strong>Thanh toán trực tuyến:</strong> Tích hợp cổng VNPay, MoMo để bệnh nhân đặt cọc giữ chỗ tiện lợi.</li>
+                <li><strong>Nhắc lịch đa kênh:</strong> Tự động gửi SMS Brandname và Zalo ZNS trước giờ khám để hạn chế bệnh nhân quên lịch.</li>
+                <li><strong>Tư vấn Telemedicine:</strong> Tích hợp gọi video WebRTC trực tuyến giữa bác sĩ và bệnh nhân từ xa.</li>
+                <li><strong>Trợ lý AI phân tích triệu chứng:</strong> Tự động gợi ý chuyên khoa khám phù hợp dựa trên mô tả của bệnh nhân.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Dự án ClinicCare · Học phần Quản lý Dự án CNTT</span>
+        <span>Trang 14 / 15</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 15 -->
+    <div class="slide title-slide" data-index="15" style="text-align: center; align-items: center;">
+      <span class="badge-sub">CLINICCARE · NỀN TẢNG ĐẶT LỊCH KHÁM THÔNG MINH</span>
+      <h1 style="font-size: 40px; margin-bottom: 24px;">KẾT LUẬN & HỎI ĐÁP (Q&A)</h1>
+      <div class="meta-box" style="max-width: 800px; text-align: left; margin-bottom: 32px;">
+        <p>• Hệ thống ClinicCare đã hoàn thành toàn diện các phân hệ Bệnh nhân, Bác sĩ và Quản trị viên.</p>
+        <p>• Quy trình nghiệp vụ khép kín, an toàn dữ liệu, chống trùng lịch và giao diện thân thiện.</p>
+        <p>• Dự án đã sẵn sàng cho buổi bảo vệ học phần Quản lý Dự án Công nghệ Thông tin.</p>
+        <p style="margin-top: 10px;"><strong>Mã nguồn dự án:</strong> <a href="https://github.com/B1t-Phun/qtda-clinic-booking" target="_blank">github.com/B1t-Phun/qtda-clinic-booking</a></p>
+      </div>
+      <p style="font-size: 20px; font-weight: 700; color: #fde68a;">
+        XIN TRÂN TRỌNG CẢM ƠN THẦY CÔ VÀ CÁC BẠN ĐÃ LẮNG NGHE!<br>
+        <span style="font-size: 15px; font-weight: 500; color: #cbd5e1;">Kính mời Thầy Cô và Hội đồng đặt câu hỏi phản biện.</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="prevBtn">◀ Slide trước (Phím ⬅)</button>
+    <span id="slideIndicator" style="font-weight: 700; min-width: 80px; text-align: center;">1 / 15</span>
+    <button class="btn" id="nextBtn">Slide sau (Phím ➡) ▶</button>
+    <button class="btn" id="fsBtn" style="margin-left: 16px;">⛶ Toàn màn hình (F11)</button>
+    <span class="hint">Mẹo: Nhấn phím mũi tên Trái / Phải để chuyển trang</span>
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const indicator = document.getElementById('slideIndicator');
+
+    function showSlide(index) {
+      if (index < 1) index = 1;
+      if (index > totalSlides) index = totalSlides;
+      currentSlide = index;
+
+      slides.forEach((s) => s.classList.remove('active'));
+      const activeSlide = document.querySelector(`.slide[data-index="${currentSlide}"]`);
+      if (activeSlide) activeSlide.classList.add('active');
+
+      indicator.textContent = `${currentSlide} / ${totalSlides}`;
+    }
+
+    document.getElementById('prevBtn').addEventListener('click', () => showSlide(currentSlide - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => showSlide(currentSlide + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        showSlide(currentSlide + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        showSlide(currentSlide - 1);
+      } else if (e.key === 'Home') {
+        showSlide(1);
+      } else if (e.key === 'End') {
+        showSlide(totalSlides);
+      }
+    });
+
+    document.getElementById('fsBtn').addEventListener('click', () => {
+      const el = document.getElementById('slideDeck');
+      if (!document.fullscreenElement) {
+        el.requestFullscreen().catch((err) => alert('Không thể bật toàn màn hình: ' + err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    });
+  </script>
+</body>
+</html>
