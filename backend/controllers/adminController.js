@@ -487,36 +487,29 @@ exports.getPatients = async (req, res) => {
 
 exports.createPatient = async (req, res) => {
   try {
-    const { full_name, email, phone, gender, date_of_birth, address } = req.body;
-    if (!full_name) {
-      return res.status(400).json({ success: false, message: 'Họ tên là bắt buộc' });
+    const { full_name, email, phone, gender, date_of_birth, address, avatar_url } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (typeof full_name !== 'string' || full_name.trim().length < 2 || full_name.trim().length > 100 ||
+        (normalizedEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(normalizedEmail)) ||
+        typeof phone !== 'string' || !/^0\d{9}$/.test(phone) ||
+        (gender != null && gender !== '' && !['male', 'female', 'other'].includes(gender)) ||
+        (date_of_birth && (!/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth) || !Number.isFinite(Date.parse(date_of_birth)) ||
+          new Date(date_of_birth).toISOString().slice(0, 10) !== date_of_birth || date_of_birth > new Date().toISOString().slice(0, 10))) ||
+        (address != null && (typeof address !== 'string' || address.length > 500)) ||
+        (avatar_url != null && (typeof avatar_url !== 'string' || !/^https?:\/\//.test(avatar_url) || avatar_url.length > 2048))) {
+      return res.status(400).json({ success: false, message: 'Please check the patient name and details.' });
     }
-
-    const patientId = req.body.id || crypto.randomUUID();
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert([
-        {
-          id: patientId,
-          full_name,
-          email: email || null,
-          phone: phone || null,
-          gender: gender || 'other',
-          date_of_birth: date_of_birth || null,
-          address: address || null,
-          role: 'patient',
-        },
-      ])
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from('profiles').insert({
+      id: crypto.randomUUID(), email: normalizedEmail, full_name: full_name.trim(), phone,
+      gender: gender || null, date_of_birth: date_of_birth || null, address: address || null,
+      avatar_url: avatar_url || null, role: 'patient',
+    }).select().single();
     if (error) throw error;
-    return res.status(201).json({ success: true, message: 'Tạo hồ sơ bệnh nhân thành công', data });
+    return res.status(201).json({ success: true, message: 'Patient profile created.', data });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-
 exports.updatePatient = async (req, res) => {
   try {
     const { id } = req.params;

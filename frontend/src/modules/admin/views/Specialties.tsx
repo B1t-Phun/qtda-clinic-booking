@@ -65,10 +65,10 @@ function SpecialtyDrawer({ s, doctorCount, onClose, onDelete }: { s: Specialty |
   const [touched, setTouched] = useState(false)
   const dup = db.specialties.some((x) => x.id !== s?.id && x.name.trim().toLowerCase() === name.trim().toLowerCase())
   const err = !name.trim() ? 'Nhập tên chuyên khoa' : dup ? 'Tên chuyên khoa đã tồn tại' : ''
-  const submit = () => {
+  const submit = async () => {
     setTouched(true)
     if (err) return
-    const r = saveSpecialty({ id: s?.id, name, description: desc.trim() || null })
+    const r = await saveSpecialty({ id: s?.id, name, description: desc.trim() || null })
     if (!r.ok) return toast({ tone: 'error', title: r.error })
     toast({ tone: 'success', title: s ? 'Đã cập nhật chuyên khoa' : 'Đã thêm chuyên khoa', description: name.trim() })
     onClose()

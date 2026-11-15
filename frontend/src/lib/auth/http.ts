@@ -31,11 +31,11 @@ export function assertSameOrigin(request: Request) {
   }
 }
 
-export async function readBody(request: Request, keys: readonly string[]) {
+export async function readBody(request: Request, keys: readonly string[], maxBytes = 8192) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
     throw new AuthHttpError(415, 'Chỉ chấp nhận dữ liệu JSON.');
   }
-  if (Number(request.headers.get('content-length') || 0) > 8192) throw new AuthHttpError(413, 'Dữ liệu quá lớn.');
+  if (Number(request.headers.get('content-length') || 0) > maxBytes) throw new AuthHttpError(413, 'Dữ liệu quá lớn.');
   // Bound streamed requests too, including requests without Content-Length.
   const reader = request.body?.getReader();
   if (!reader) throw new AuthHttpError(400, 'Dữ liệu không hợp lệ.');
@@ -45,7 +45,7 @@ export async function readBody(request: Request, keys: readonly string[]) {
     const item = await reader.read();
     if (item.done) break;
     length += item.value.byteLength;
-    if (length > 8192) { await reader.cancel(); throw new AuthHttpError(413, 'Dữ liệu quá lớn.'); }
+    if (length > maxBytes) { await reader.cancel(); throw new AuthHttpError(413, 'Dữ liệu quá lớn.'); }
     chunks.push(item.value);
   }
   let body;

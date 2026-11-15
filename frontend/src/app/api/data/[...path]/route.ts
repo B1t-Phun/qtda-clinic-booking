@@ -10,7 +10,7 @@ async function handle(request: Request, context: Context) {
   try {
     const { path } = await context.params;
     const table = path.length === 1 && tables.has(path[0]);
-    const roleRpc = path.length === 2 && path[0] === 'rpc' && path[1] === 'admin_set_user_role';
+    const roleRpc = path.length === 2 && path[0] === 'rpc' && ['admin_set_user_role', 'admin_save_doctor', 'admin_set_doctor_active', 'admin_delete_doctor', 'admin_save_specialty', 'admin_create_patient', 'admin_create_appointment'].includes(path[1]);
     if (!table && !roleRpc) return json({ message: 'Không tìm thấy.' }, 404);
     const mutation = !['GET', 'HEAD'].includes(request.method);
     if (mutation) assertSameOrigin(request);

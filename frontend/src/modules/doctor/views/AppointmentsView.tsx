@@ -1,286 +1,74 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  Download,
-  Plus,
-  Search,
-} from 'lucide-react';
-import {
-  type Appointment,
-} from '../data';
-import {
-  StatusBadge,
-  EmptyState,
-  SkeletonList,
-} from '../components/DoctorUI';
+import { useDeferredValue } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Download, Search } from 'lucide-react';
+import type { Appointment } from '../data';
+import { Avatar, DoctorButton, EmptyState, PageHeading, Pagination, QuickAction, StatusBadge } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
-import { ageOf, genderLabel } from '../utils';
+import { clinicDate, downloadCsv, queueAppointments, slotInstant, stage, stageLabel } from '../workflow';
+import { dateVN, searchText, timeLabel } from '../utils';
 
-
+const tabs = [
+  ['all', 'Tất cả'], ['pending', 'Chờ xác nhận'], ['upcoming', 'Sắp khám'], ['queue', 'Đã đến / Chờ khám'],
+  ['ongoing', 'Đang khám'], ['completed', 'Hoàn thành'], ['cancelled', 'Đã hủy'], ['no_show', 'Vắng mặt'],
+];
 export default function AppointmentsView() {
-  const { appointments, slots, patients, setSelectedAppointment } = useDoctorStore();
-  const [tab, setTab] = useState<'all' | 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled'>('all');
-  const [search, setSearch] = useState('');
-  const [date, setDate] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // Status mapping for tabs
-  const tabFilter = (a: Appointment) => {
-    if (tab === 'all') return true;
-    if (tab === 'pending') return a.status === 'pending';
-    if (tab === 'upcoming') return a.status === 'confirmed';
-    if (tab === 'ongoing') return a.status === 'confirmed'; // Live/current
-    if (tab === 'completed') return a.status === 'completed';
-    if (tab === 'cancelled') return a.status === 'cancelled' || a.status === 'no_show';
-    return true;
-  };
-
-  const filtered = appointments
-    .filter((a) => {
-      const p = patients.find((x) => x.id === a.patient_id);
-      const s = slots.find((x) => x.id === a.slot_id);
-      if (!p || !s) return false;
-      return (
-        tabFilter(a) &&
-        (!date || s.slot_date === date) &&
-        (!search || `${p.full_name} ${p.phone} #${a.id}`.toLowerCase().includes(search.toLowerCase()))
-      );
-    })
-    .sort((a, b) => {
-      const sa = slots.find((x) => x.id === a.slot_id)!;
-      const sb = slots.find((x) => x.id === b.slot_id)!;
-      return `${sa.slot_date}${sa.start_time}`.localeCompare(`${sb.slot_date}${sb.start_time}`);
-    });
-
-  const triggerLoad = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 250);
-  };
-
-  const pendingCount = appointments.filter((a) => a.status === 'pending').length;
-  const confirmedCount = appointments.filter((a) => a.status === 'confirmed').length;
-  const completedCount = appointments.filter((a) => a.status === 'completed').length;
-  const cancelledCount = appointments.filter((a) => a.status === 'cancelled' || a.status === 'no_show').length;
-
-  return (
-    <div className="space-y-6 animate-fade-in text-[#193638]">
-      {/* ── Tiêu đề trang (Page Heading & Actions) ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="text-[12px] font-medium text-[#65797d]">
-            Không gian bác sĩ / <span className="text-[#193638]">Danh sách lịch hẹn</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#103f3d] mt-1 sm:text-[26px]">
-            Danh sách lịch hẹn
-          </h1>
-          <p className="text-xs text-[#65797d] mt-0.5">
-            Theo dõi, xác nhận và điều phối các lịch hẹn của bạn.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => alert('Đang xuất danh sách lịch hẹn CSV...')}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#dfe7e7] bg-white px-3.5 text-xs font-semibold text-[#193638] shadow-xs hover:bg-[#f4f7f7] transition-colors"
-          >
-            <Download className="size-4 text-[#65797d]" />
-            <span>Xuất danh sách</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => alert('Mở dialog tạo lịch hẹn')}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#087f72] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#06665c] transition-colors"
-          >
-            <Plus className="size-4" />
-            <span>Tạo lịch hẹn</span>
-          </button>
-        </div>
+  const store = useDoctorStore(), params = useSearchParams();
+  const query = params.get('q') || '', date = params.get('date') || '';
+  const tab = params.get('tab') === 'records' ? 'completed' : params.get('tab') || 'all';
+  const search = searchText(useDeferredValue(query));
+  const patientMap = new Map(store.patients.map(patient => [patient.id, patient]));
+  const slotMap = new Map(store.slots.map(slot => [slot.id, slot]));
+  const queue = new Set(queueAppointments(store.appointments, store.slots, store.now).map(a => a.id));
+  const tabFilter = (a: Appointment, value: string) => value === 'all' ||
+    (value === 'upcoming' ? a.status === 'confirmed' && !a.checked_in_at :
+      value === 'queue' ? queue.has(a.id) : value === 'ongoing' ? stage(a) === 'ongoing' : a.status === value);
+  const filtered = store.appointments.filter(a => {
+    const patient = patientMap.get(a.patient_id), slot = slotMap.get(a.slot_id);
+    return patient && slot && tabFilter(a, tab) && (!date || slot.slot_date === date) &&
+      (!search || searchText(patient.full_name + ' ' + patient.phone + ' #' + a.id).includes(search));
+  }).sort((a, b) => {
+    if (tab === 'queue') return Number(!!b.started_at) - Number(!!a.started_at) || (a.checked_in_at || '').localeCompare(b.checked_in_at || '');
+    return slotInstant(slotMap.get(a.slot_id)!) - slotInstant(slotMap.get(b.slot_id)!);
+  });
+  const pageSize = 15, pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(pages, Math.max(1, Math.floor(Number(params.get('page'))) || 1));
+  function update(values: Record<string, string>) {
+    const next = new URLSearchParams(params.toString());
+    for (const [key, value] of Object.entries(values)) { if (value) next.set(key, value); else next.delete(key); }
+    window.history.replaceState(null, '', '/doctor/appointments' + (next.size ? '?' + next.toString() : ''));
+  }
+  function exportRows() {
+    downloadCsv('lich-hen-' + clinicDate(store.now) + '.csv', [
+      ['Mã lịch', 'Bệnh nhân', 'Điện thoại', 'Ngày khám', 'Bắt đầu', 'Kết thúc', 'Trạng thái', 'Lý do khám'],
+      ...filtered.map(a => { const slot = slotMap.get(a.slot_id)!, patient = patientMap.get(a.patient_id)!;
+        return [a.id, patient.full_name, patient.phone, slot.slot_date, slot.start_time, slot.end_time, stageLabel(a), a.reason]; }),
+    ]);
+  }
+  return <div className="page-content">
+    <PageHeading title="Lịch hẹn của tôi" description="Xác nhận lịch, tiếp nhận bệnh nhân và theo dõi tiến trình khám."
+      actions={<DoctorButton variant="secondary" icon={<Download size={17} />} disabled={!filtered.length} onClick={exportRows}>Xuất CSV</DoctorButton>} />
+    <section className="card appointments-card">
+      <nav className="filter-tabs" aria-label="Trạng thái lịch hẹn">{tabs.map(([value, label]) => <button type="button" key={value}
+        aria-pressed={tab === value} onClick={() => update({ tab: value === 'all' ? '' : value, page: '' })}>
+        {label}<span>{store.appointments.filter(a => tabFilter(a, value)).length}</span></button>)}</nav>
+      <div className="filter-toolbar"><label className="search-field"><Search size={18} /><input type="search" aria-label="Tìm bệnh nhân hoặc mã lịch hẹn" placeholder="Tên bệnh nhân, số điện thoại, mã lịch…"
+        value={query} onChange={event => update({ q: event.target.value, page: '' })} /></label>
+        <label className="inline-field"><span>Ngày khám</span><input type="date" value={date} onChange={event => update({ date: event.target.value, page: '' })} /></label>
+        {(query || date || tab !== 'all') && <DoctorButton variant="ghost" onClick={() => update({ q: '', date: '', tab: '', page: '' })}>Xóa bộ lọc</DoctorButton>}
       </div>
-
-      {/* ── Khối nội dung (Tabs & Filters & Table) ── */}
-      <div className="rounded-2xl border border-[#dfe7e7] bg-white shadow-xs overflow-hidden">
-        {/* Tabs chuẩn Figma */}
-        <div className="flex border-b border-[#dfe7e7] px-4 overflow-x-auto gap-2">
-          {[
-            { id: 'all', label: 'Tất cả', count: appointments.length },
-            { id: 'pending', label: 'Chờ xác nhận', count: pendingCount },
-            { id: 'upcoming', label: 'Sắp khám', count: confirmedCount },
-            { id: 'ongoing', label: 'Đang khám', count: 1 },
-            { id: 'completed', label: 'Hoàn tất', count: completedCount },
-            { id: 'cancelled', label: 'Đã hủy', count: cancelledCount },
-          ].map((t) => (
-            <button
-              type="button"
-              key={t.id}
-              onClick={() => {
-                setTab(t.id as typeof tab);
-                triggerLoad();
-              }}
-              className={`flex items-center gap-1.5 py-3.5 px-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                tab === t.id
-                  ? 'border-[#087f72] text-[#087f72] font-semibold'
-                  : 'border-transparent text-[#65797d] hover:text-[#193638]'
-              }`}
-            >
-              <span>{t.label}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] ${
-                tab === t.id ? 'bg-[#e8f5f0] text-[#087f72]' : 'bg-[#f4f7f7] text-[#65797d]'
-              }`}>
-                {t.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Filter Bar */}
-        <div className="p-4 border-b border-[#dfe7e7] bg-[#fcfcfa] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3 flex-1">
-            {/* Search */}
-            <div className="relative min-w-[240px] max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#8a9b9e]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="⌕  Tìm tên bệnh nhân, mã lịch hẹn..."
-                className="h-9 w-full rounded-xl border border-[#dfe7e7] bg-white pl-9 pr-3 text-xs text-[#193638] placeholder:text-[#8a9b9e] focus:border-[#087f72] focus:outline-none"
-              />
-            </div>
-
-            {/* Date filter */}
-            <div className="relative">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-9 rounded-xl border border-[#dfe7e7] bg-white px-3 text-xs text-[#193638] focus:border-[#087f72] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {(search || date || tab !== 'all') && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('');
-                setDate('');
-                setTab('all');
-              }}
-              className="text-xs font-medium text-[#087f72] hover:underline"
-            >
-              Xóa bộ lọc
-            </button>
-          )}
-        </div>
-
-        {/* Data Table chuẩn Figma */}
-        {loading ? (
-          <div className="p-6">
-            <SkeletonList />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-8">
-            <EmptyState search={!!(search || date || tab !== 'all')} />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-[#dfe7e7] bg-[#f4f7f7] text-[11px] font-semibold uppercase text-[#65797d]">
-                <tr>
-                  <th className="py-3 px-4">BỆNH NHÂN</th>
-                  <th className="py-3 px-4">GIỜ HẸN</th>
-                  <th className="py-3 px-4">LÝ DO KHÁM</th>
-                  <th className="py-3 px-4">HÌNH THỨC</th>
-                  <th className="py-3 px-4">TRẠNG THÁI</th>
-                  <th className="py-3 px-4 text-right">THAO TÁC</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#dfe7e7]">
-                {filtered.map((a) => {
-                  const p = patients.find((x) => x.id === a.patient_id);
-                  const s = slots.find((x) => x.id === a.slot_id);
-                  if (!p || !s) return null;
-
-                  return (
-                    <tr
-                      key={a.id}
-                      onClick={() => setSelectedAppointment(a)}
-                      className="cursor-pointer hover:bg-[#f4f7f7]/60 transition-colors"
-                    >
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8f5f0] text-[#087f72] font-bold text-xs">
-                            {p.full_name.split(' ').map((x) => x[0]).slice(-2).join('').toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-[#193638]">{p.full_name}</div>
-                            <div className="text-[11px] text-[#65797d]">
-                              BN-{String(p.id).padStart(5, '0')} · {genderLabel[p.gender]}, {ageOf(p.date_of_birth)}t
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono font-semibold text-[#193638]">{s.start_time}</div>
-                        <div className="text-[11px] text-[#65797d]">30 phút · {s.slot_date}</div>
-                      </td>
-                      <td className="py-3.5 px-4 text-[#193638] max-w-xs truncate">
-                        {a.reason || 'Khám bệnh'}
-                      </td>
-                      <td className="py-3.5 px-4 text-[#65797d]">
-                        <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px]">
-                          Tại phòng khám
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={a.status} />
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAppointment(a);
-                          }}
-                          className="rounded-lg border border-[#dfe7e7] px-2.5 py-1 text-[11px] font-medium text-[#193638] hover:bg-[#f4f7f7] transition-colors"
-                        >
-                          Xem ⋯
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Pagination footer */}
-            <div className="p-4 border-t border-[#dfe7e7] bg-[#fcfcfa] flex items-center justify-between text-xs text-[#65797d]">
-              <div>
-                Hiển thị <b>1–{filtered.length}</b> trong <b>{appointments.length}</b> lịch hẹn
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-lg border border-[#dfe7e7] px-2.5 py-1 text-xs opacity-50 cursor-not-allowed"
-                >
-                  ← Trước
-                </button>
-                <span className="px-2 font-medium text-[#193638]">1</span>
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-lg border border-[#dfe7e7] px-2.5 py-1 text-xs opacity-50 cursor-not-allowed"
-                >
-                  Sau →
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+      {!filtered.length ? <EmptyState search={!!query || !!date || tab !== 'all'} /> : <>
+        <table className="doctor-table appointment-table"><thead><tr><th>Bệnh nhân</th><th>Ngày / giờ khám</th><th>Lý do khám</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+          <tbody>{filtered.slice((page - 1) * pageSize, page * pageSize).map(a => {
+            const patient = patientMap.get(a.patient_id)!, slot = slotMap.get(a.slot_id)!;
+            return <tr key={a.id}><td><button className="person appointment-open" onClick={() => store.setSelectedAppointment(a)}><Avatar profile={patient} /><span><strong>{patient.full_name || 'Chưa cập nhật họ tên'}</strong><small>{patient.phone || 'Chưa có SĐT'} · #{a.id}</small></span></button></td>
+              <td data-label="Ngày / giờ"><strong>{timeLabel(slot.start_time)}–{timeLabel(slot.end_time)}</strong><small>{dateVN(slot.slot_date)}</small></td>
+              <td data-label="Lý do" className="reason-cell">{a.reason || 'Chưa cung cấp'}</td><td><StatusBadge appointment={a} /></td>
+              <td><div className="row-actions">{['pending', 'confirmed'].includes(a.status) && <QuickAction appointment={a} />}<DoctorButton variant="ghost" onClick={() => store.setSelectedAppointment(a)}>Chi tiết</DoctorButton></div></td></tr>;
+          })}</tbody></table>
+        <Pagination page={page} total={filtered.length} pageSize={pageSize} onChange={value => update({ page: String(value) })} />
+      </>}
+    </section>
+  </div>;
 }

@@ -1,11 +1,10 @@
 const { readFileSync, existsSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const envFiles = [
-  '.env', '.env.local',
-  'backend/.env', 'backend/.env.local',
-  'frontend/.env', 'frontend/.env.local',
-  'supabase/.env', 'supabase/.env.local',
+const envFiles = ['.env.local'];
+const frontendKeys = [
+  'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+  'NEXT_PUBLIC_HCAPTCHA_SITE_KEY', 'NEXT_PUBLIC_AUTH_MANUAL_LINKING', 'APP_URL',
 ];
 function parseEnv(source) {
   const values = {};
@@ -75,4 +74,9 @@ function loadProjectEnv({ root = resolve(__dirname, '..'), shell = process.env, 
   }
   return merged;
 }
-module.exports = { envFiles, parseEnv, loadProjectEnv };
+function loadFrontendEnv(options = {}) {
+  const values = loadProjectEnv(options);
+  // Load only the frontend configuration; administrative secrets stay in backend/scripts.
+  return Object.fromEntries(frontendKeys.filter(key => values[key] !== undefined).map(key => [key, values[key]]));
+}
+module.exports = { envFiles, parseEnv, loadProjectEnv, loadFrontendEnv };

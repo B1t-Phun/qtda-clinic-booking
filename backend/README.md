@@ -3,8 +3,10 @@
 Backend REST API dùng **Express.js** và **Supabase SDK** (`@supabase/supabase-js`).
 Xác thực và truy vấn dữ liệu đi qua Supabase API bằng HTTPS. Cấu hình bảng và phân quyền trong Supabase Dashboard → SQL Editor theo `docs/database_schema.sql` và `docs/auth_security.sql`.
 
-## 1. Cấu hình biến môi trường (`.env` hoặc `.env.local`)
-Backend tự động tải cấu hình từ `.env` trong thư mục `backend/` hoặc `.env.local` ở thư mục gốc:
+## 1. Cấu hình biến môi trường
+Backend tự động tải cấu hình từ duy nhất `.env.local` ở thư mục gốc.
+Sao chép `.env.example` ở gốc thành `.env.local` rồi điền thông tin project; không tạo env riêng trong `backend/`.
+Xem thêm [hướng dẫn thiết lập chung](../README.md). Các biến backend dùng:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://bcvqtpyckdgeyazbuuio.supabase.co

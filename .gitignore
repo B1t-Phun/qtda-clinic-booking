@@ -6,8 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Environment variables - ClinicCare
-frontend/.env.local
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -159,4 +157,5 @@ vite.config.ts.timestamp-*
 *.pptx
 ClinicCare_Slide_Thuyet_Trinh.html
 
-
+# Local Doctor visual review artifacts (may contain patient data)
+/artifacts/doctor/

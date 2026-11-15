@@ -14,7 +14,8 @@ exception when duplicate_object then null; end $$;
 
 -- 1. PROFILES (mở rộng auth.users của Supabase) ------------------------
 create table if not exists public.profiles (
-  id            uuid primary key references auth.users(id) on delete cascade,
+  -- Auth users and walk-in patients share this profile table; guest ids need not exist in auth.users.
+  id            uuid primary key,
   email         text,
   full_name     text not null default '',
   phone         text,

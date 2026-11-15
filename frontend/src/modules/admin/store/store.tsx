@@ -2,10 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Appointment, DB, Doctor, Profile, Role, Specialty, Status, TimeSlot } from './types'
 import { useAuth } from '@/lib/auth/context'
-import { buildSeed } from './seed'
-import { todayISO, toMin, uid } from '@/lib/format'
-
-const KEY = 'clinicbooking-admin-db-v2'
+import { createClient } from '@/lib/supabase/client'
+import { toMin } from '@/lib/format'
 
 export interface ApptView extends Appointment {
   patient: Profile
@@ -20,56 +18,67 @@ export interface DoctorView extends Doctor {
 }
 
 type Result = { ok: true } | { ok: false; error: string }
-const now = () => (typeof window === 'undefined' ? '2026-11-09T08:00:00.000Z' : new Date().toISOString())
-
-// Seed dates are relative to today, so a stored snapshot from a previous day is re-seeded.
-function load(): DB {
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem(KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as { day: string; db: DB }
-        if (parsed.day === todayISO()) return parsed.db
-      }
-    } catch {}
-  }
-  return buildSeed()
-}
-
 function useStoreValue() {
-  const [db, setDb] = useState<DB>(load)
+  const [db, setDb] = useState<DB>({ profiles: [], specialties: [], doctors: [], time_slots: [], appointments: [] })
   const { user: authUser, logout } = useAuth()
   const authed = authUser.role === 'admin'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const failNext = useRef(false)
-
-  useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify({ day: todayISO(), db }))
-  }, [db])
+  const loadSequence = useRef(0)
+  const invalidateLoads = useCallback(() => { loadSequence.current += 1 }, [])
 
   const reload = useCallback(() => {
+    const sequence = ++loadSequence.current
     setLoading(true)
     setError(false)
-    const t = setTimeout(() => {
-      setLoading(false)
-      if (failNext.current) {
-        failNext.current = false
-        setError(true)
+    let active = true
+    const client = createClient()
+    const readAll = async (table: 'profiles' | 'specialties' | 'doctors' | 'time_slots' | 'appointments') => {
+      const rows: Record<string, unknown>[] = []
+      for (let from = 0; ; from += 500) {
+        const { data, error } = await client.from(table).select('*').order('id').range(from, from + 499)
+        if (error) throw error
+        rows.push(...((data || []) as Record<string, unknown>[]))
+        if (!data || data.length < 500) return rows
       }
-    }, 650)
-    return () => clearTimeout(t)
+    }
+    void Promise.all([
+      readAll('profiles'), readAll('specialties'), readAll('doctors'), readAll('time_slots'), readAll('appointments'),
+    ]).then(([profiles, specialties, doctors, time_slots, appointments]) => {
+      if (!active || sequence !== loadSequence.current) return
+      const idsToString = <T extends Record<string, unknown>>(rows: T[]): T[] => rows.map(row => Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key, (key === 'id' || key.endsWith('_id')) && value != null && !(key === 'id' && 'patient_id' in row) ? String(value) : value]),
+      ) as T)
+      setDb({
+        profiles: idsToString(profiles) as unknown as Profile[],
+        specialties: idsToString(specialties) as unknown as DB['specialties'],
+        doctors: idsToString(doctors) as unknown as Doctor[],
+        time_slots: idsToString(time_slots) as unknown as TimeSlot[],
+        appointments: appointments.map(row => ({ ...row, patient_id: String(row.patient_id), doctor_id: String(row.doctor_id), slot_id: String(row.slot_id) })) as unknown as Appointment[],
+      })
+      setError(false)
+    }).catch(() => { if (active && sequence === loadSequence.current) setError(true) }).finally(() => { if (active && sequence === loadSequence.current) setLoading(false) })
+    return () => { active = false }
   }, [])
+  const dbClient = useMemo(() => createClient(), [])
+  const persist = useCallback((write: () => PromiseLike<{ error: { message?: string } | null }>) => {
+    void (async () => {
+      const { error: writeError } = await write()
+      if (writeError) throw writeError
+      void reload()
+    })().catch(() => setError(true))
+  }, [reload])
   useEffect(() => {
     if (!authed) return
-    const timer = setTimeout(() => setLoading(false), 650)
-    return () => clearTimeout(timer)
-  }, [authed])
+    let stop: (() => void) | undefined
+    const initial = setTimeout(() => { stop = reload() }, 0)
+    const sync = () => { if (document.visibilityState !== 'hidden') reload() }
+    const poll = setInterval(sync, 45_000)
+    window.addEventListener('focus', sync)
+    return () => { clearTimeout(initial); stop?.(); invalidateLoads(); clearInterval(poll); window.removeEventListener('focus', sync) }
+  }, [authed, invalidateLoads, reload])
 
-  const simulateError = () => {
-    failNext.current = true
-    reload()
-  }
+  const simulateError = () => setError(true)
 
   // ---------- lookups ----------
   const maps = useMemo(() => {
@@ -103,17 +112,9 @@ function useStoreValue() {
   )
 
   // ---------- mutations ----------
-  const setStatus = (ids: number[], status: Status, extra: Partial<Appointment> = {}) =>
-    setDb((d) => {
-      const idSet = new Set(ids)
-      const freeSlots = new Set<string>()
-      const appointments = d.appointments.map((a) => {
-        if (!idSet.has(a.id)) return a
-        if (status === 'cancelled') freeSlots.add(a.slot_id)
-        return { ...a, ...extra, status, updated_at: now() }
-      })
-      return { ...d, appointments, time_slots: d.time_slots.map((s) => (freeSlots.has(s.id) ? { ...s, is_booked: false } : s)) }
-    })
+  const setStatus = (ids: number[], status: Status, extra: Partial<Appointment> = {}) => {
+    persist(() => dbClient.from('appointments').update({ status, ...extra, updated_at: new Date().toISOString() }).in('id', ids))
+  }
 
   const confirm = (ids: number[]) => setStatus(ids, 'confirmed')
   const cancel = (id: number, cancel_reason: string) => setStatus([id], 'cancelled', { cancel_reason })
@@ -123,81 +124,110 @@ function useStoreValue() {
   const reschedule = (id: number, slotId: string): Result => {
     const slot = maps.slots.get(slotId)
     if (!slot || slot.is_booked) return { ok: false, error: 'Khung giờ đã được đặt' }
-    setDb((d) => {
-      const a = d.appointments.find((x) => x.id === id)!
-      return {
-        ...d,
-        appointments: d.appointments.map((x) => (x.id === id ? { ...x, slot_id: slotId, updated_at: now() } : x)),
-        time_slots: d.time_slots.map((s) => (s.id === a.slot_id ? { ...s, is_booked: false } : s.id === slotId ? { ...s, is_booked: true } : s)),
-      }
-    })
+    persist(() => dbClient.from('appointments').update({ slot_id: slotId, updated_at: new Date().toISOString() }).eq('id', id))
     return { ok: true }
   }
 
-  const createAppointment = (input: { patient_id: string; doctor_id: string; slot_id: string; reason: string; status: Status }): number => {
-    const id = Math.max(1000, ...db.appointments.map((a) => a.id)) + 1
-    const t = now()
-    setDb((d) => ({
-      ...d,
-      appointments: [...d.appointments, { id, ...input, doctor_note: null, cancel_reason: null, created_at: t, updated_at: t }],
-      time_slots: d.time_slots.map((s) => (s.id === input.slot_id ? { ...s, is_booked: true } : s)),
-    }))
-    return id
+  const createAppointment = async (input: { patient_id: string; doctor_id: string; slot_id: string; reason: string; status: Status }): Promise<number> => {
+    const { data, error } = await dbClient.rpc('admin_create_appointment', {
+      p_patient_id: input.patient_id,
+      p_doctor_id: input.doctor_id,
+      p_slot_id: Number(input.slot_id),
+      p_reason: input.reason.trim(),
+      p_status: input.status,
+    })
+    if (error) throw error
+    if (typeof data !== 'number' && typeof data !== 'string') throw new Error('Supabase không trả về mã lịch hẹn.')
+    void reload()
+    return Number(data)
   }
 
   const emailTaken = (email: string, exceptId?: string) =>
     db.profiles.some((p) => p.email.toLowerCase() === email.trim().toLowerCase() && p.id !== exceptId)
+  const patientAccountExists = (email: string) => db.profiles.some(p => p.role === 'patient' && p.email.toLowerCase() === email.trim().toLowerCase())
 
-  const saveProfile = (p: Partial<Profile> & { id?: string }, role: Role = 'patient'): Profile => {
-    const t = now()
-    if (p.id) {
-      const existing = maps.profiles.get(p.id)!
-      const next = { ...existing, ...p, updated_at: t } as Profile
-      setDb((d) => ({ ...d, profiles: d.profiles.map((x) => (x.id === p.id ? next : x)) }))
-      return next
-    }
-    const created: Profile = {
-      id: `u-${uid()}`, email: '', full_name: '', phone: null, date_of_birth: null, gender: null, address: null, avatar_url: null,
-      ...p, role, created_at: t, updated_at: t,
-    } as Profile
-    setDb((d) => ({ ...d, profiles: [...d.profiles, created] }))
+  const createPatientRecord = async (input: {
+    full_name: string
+    email: string
+    phone: string
+    gender: Profile['gender']
+    date_of_birth: string | null
+    address: string | null
+    avatar_url: string | null
+  }): Promise<Profile> => {
+    const { data, error } = await dbClient.rpc('admin_create_patient', {
+      p_full_name: input.full_name.trim(),
+      p_email: input.email.trim() || null,
+      p_phone: input.phone,
+      p_gender: input.gender,
+      p_date_of_birth: input.date_of_birth,
+      p_address: input.address,
+      p_avatar_url: input.avatar_url,
+    })
+    if (error) throw error
+    if (!data || typeof data !== 'object') throw new Error('Supabase did not return the patient profile.')
+    const created = { ...(data as Profile), email: (data as Profile).email || '' }
+    setDb(current => ({ ...current, profiles: [...current.profiles, created] }))
     return created
   }
-
-  const saveDoctor = (profile: Partial<Profile>, doc: Omit<Doctor, 'id' | 'profile_id' | 'created_at'>, doctorId?: string): string => {
-    if (doctorId) {
-      const existing = maps.doctors.get(doctorId)!
-      saveProfile({ ...profile, id: existing.profile_id })
-      setDb((d) => ({ ...d, doctors: d.doctors.map((x) => (x.id === doctorId ? { ...x, ...doc } : x)) }))
-      return doctorId
+  const saveProfile = (p: Partial<Profile> & { id?: string }, role: Role = 'patient'): Profile => {
+    const linked = p.id ? maps.profiles.get(p.id) : db.profiles.find(profile => profile.email.toLowerCase() === (p.email || '').trim().toLowerCase() && profile.role === role)
+    if (linked) {
+      const existing = linked
+      const next = { ...existing, ...p, email: existing.email, updated_at: new Date().toISOString() } as Profile
+      const t = next.updated_at
+      persist(() => dbClient.from('profiles').update({ full_name: next.full_name, phone: next.phone, date_of_birth: next.date_of_birth, gender: next.gender, address: next.address, avatar_url: next.avatar_url, updated_at: t }).eq('id', existing.id))
+      return next
     }
-    const p = saveProfile(profile, 'doctor')
-    const id = `d-${uid()}`
-    setDb((d) => ({ ...d, doctors: [...d.doctors, { id, profile_id: p.id, created_at: now(), ...doc }] }))
-    return id
-  }
-  const setDoctorActive = (id: string, is_active: boolean) =>
-    setDb((d) => ({ ...d, doctors: d.doctors.map((x) => (x.id === id ? { ...x, is_active } : x)) }))
-  const deleteDoctor = (id: string): Result => {
-    if (db.appointments.some((a) => a.doctor_id === id)) return { ok: false, error: 'Bác sĩ đã có lịch hẹn' }
-    const doc = maps.doctors.get(id)!
-    setDb((d) => ({
-      ...d,
-      doctors: d.doctors.filter((x) => x.id !== id),
-      time_slots: d.time_slots.filter((s) => s.doctor_id !== id),
-      profiles: d.profiles.filter((p) => p.id !== doc.profile_id),
-    }))
-    return { ok: true }
+    throw new Error(`Cần tạo tài khoản ${role} trong Supabase Auth trước khi thêm hồ sơ.`)
   }
 
+  const saveDoctor = async (profile: Partial<Profile>, doc: Omit<Doctor, 'id' | 'profile_id' | 'created_at'>, doctorId?: string): Promise<string> => {
+    const existing = doctorId ? maps.doctors.get(doctorId) : undefined
+    if (doctorId && !existing) throw new Error('Doctor profile not found.')
+    const account = existing
+      ? maps.profiles.get(existing.profile_id)
+      : db.profiles.find(item => item.email.toLowerCase() === (profile.email || '').trim().toLowerCase())
+    if (!account) throw new Error('Email chưa có tài khoản. Bác sĩ cần đăng ký trước.')
+    if (doctorId && account.role !== 'doctor') throw new Error('Tài khoản liên kết không có vai trò bác sĩ.')
+    if (!doctorId && account.role !== 'patient' && account.role !== 'doctor') throw new Error('Chỉ tài khoản bệnh nhân hoặc tài khoản bác sĩ chưa có hồ sơ mới được liên kết.')
+    if (!doctorId && db.doctors.some(item => item.profile_id === account.id)) throw new Error('Tài khoản này đã có hồ sơ bác sĩ.')
+
+    const { data, error } = await dbClient.rpc('admin_save_doctor', {
+      p_doctor_id: doctorId || null,
+      p_profile_id: account.id,
+      p_full_name: profile.full_name?.trim(),
+      p_phone: profile.phone || null,
+      p_avatar_url: profile.avatar_url || null,
+      p_specialty_id: doc.specialty_id,
+      p_room: doc.room,
+      p_years_experience: doc.years_experience,
+      p_consultation_fee: doc.consultation_fee,
+      p_bio: doc.bio,
+      p_is_active: doc.is_active,
+    })
+    if (error) throw error
+    if (typeof data !== 'string') throw new Error('Supabase không trả về mã hồ sơ bác sĩ.')
+    void reload()
+    return data
+  }
+  const setDoctorActive = async (id: string, is_active: boolean): Promise<void> => {
+    const { error } = await dbClient.rpc('admin_set_doctor_active', { p_doctor_id: id, p_is_active: is_active })
+    if (error) throw error
+    void reload()
+  }
+  const deleteDoctor = async (id: string): Promise<void> => {
+    const { error } = await dbClient.rpc('admin_delete_doctor', { p_doctor_id: id })
+    if (error) throw error
+    void reload()
+  }
   const slotConflicts = (doctor_id: string, slot_date: string, start: string, end: string, ignore = new Set<string>()) =>
     db.time_slots.filter(
       (s) => s.doctor_id === doctor_id && s.slot_date === slot_date && !ignore.has(s.id) &&
         (s.start_time === start || (toMin(s.start_time) < toMin(end) && toMin(start) < toMin(s.end_time))),
     )
   const addSlots = (slots: Omit<TimeSlot, 'id' | 'created_at' | 'is_booked'>[]) => {
-    const t = now()
-    setDb((d) => ({ ...d, time_slots: [...d.time_slots, ...slots.map((s) => ({ ...s, id: `s-${uid()}`, is_booked: false, created_at: t }))] }))
+    persist(() => dbClient.from('time_slots').insert(slots.map(slot => ({ ...slot, is_booked: false }))))
   }
   /** Returns why a slot cannot be deleted, or null when it is free. */
   const slotLock = (slot: TimeSlot): string | null => {
@@ -207,31 +237,33 @@ function useStoreValue() {
   }
   const deleteSlots = (ids: string[]) => {
     const removable = new Set(ids.filter((id) => { const s = maps.slots.get(id); return s && !slotLock(s) }))
-    setDb((d) => ({ ...d, time_slots: d.time_slots.filter((s) => !removable.has(s.id)) }))
+    if (removable.size) persist(() => dbClient.from('time_slots').delete().in('id', [...removable]))
     return { deleted: removable.size, skipped: ids.length - removable.size }
   }
 
-  const saveSpecialty = (s: { id?: string; name: string; description: string | null }): Result => {
+  const saveSpecialty = async (s: { id?: string; name: string; description: string | null }): Promise<Result> => {
     if (db.specialties.some((x) => x.name.trim().toLowerCase() === s.name.trim().toLowerCase() && x.id !== s.id))
       return { ok: false, error: 'Tên chuyên khoa đã tồn tại' }
-    setDb((d) =>
-      s.id
-        ? { ...d, specialties: d.specialties.map((x) => (x.id === s.id ? { ...x, name: s.name.trim(), description: s.description } : x)) }
-        : { ...d, specialties: [...d.specialties, { id: `sp-${uid()}`, name: s.name.trim(), description: s.description, created_at: now() }] },
-    )
+    const { error } = await dbClient.rpc('admin_save_specialty', {
+      p_specialty_id: s.id ? Number(s.id) : null,
+      p_name: s.name.trim(),
+      p_description: s.description,
+    })
+    if (error) return { ok: false, error: error.message }
+    void reload()
     return { ok: true }
   }
   const deleteSpecialty = (id: string): Result => {
     if (db.doctors.some((d) => d.specialty_id === id)) return { ok: false, error: 'Chuyên khoa vẫn có bác sĩ' }
-    setDb((d) => ({ ...d, specialties: d.specialties.filter((x) => x.id !== id) }))
+    persist(() => dbClient.from('specialties').delete().eq('id', id))
     return { ok: true }
   }
 
-  const resetData = () => setDb(buildSeed())
+  const me = maps.profiles.get(authUser.id) || { id: authUser.id, email: authUser.email, full_name: authUser.fullName, phone: authUser.phone || null, role: authUser.role, date_of_birth: null, gender: null, address: null, avatar_url: null, created_at: '', updated_at: '' }
   return {
-    db, maps, appts, doctorViews, authed, loading, error, reload, simulateError, logout, resetData,
-    me: { ...maps.profiles.get('u-admin')!, id: authUser.id, email: authUser.email, full_name: authUser.fullName, phone: authUser.phone || null, role: authUser.role },
-    confirm, cancel, complete, noShow, reschedule, createAppointment, saveProfile, emailTaken,
+    db, maps, appts, doctorViews, authed, loading, error, reload, simulateError, logout,
+    me,
+    confirm, cancel, complete, noShow, reschedule, createAppointment, saveProfile, createPatientRecord, emailTaken, patientAccountExists,
     saveDoctor, setDoctorActive, deleteDoctor, slotConflicts, addSlots, deleteSlots, slotLock,
     saveSpecialty, deleteSpecialty,
   }

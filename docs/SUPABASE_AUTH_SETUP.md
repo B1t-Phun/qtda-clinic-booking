@@ -32,13 +32,14 @@ Rate Limits hoặc RLS đang triển khai. Chưa thay đổi cấu hình project
 
 ## 1. Biến môi trường
 
-Dùng project Supabase hiện có. Xem frontend/.env.example.
-Trong frontend/.env.local:
+Dùng project Supabase hiện có. Sao chép .env.example ở thư mục gốc thành .env.local.
+Frontend, backend và các script Supabase cùng đọc file gốc này; không tạo env trong thư mục con.
+Các biến dành cho frontend trong .env.local:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-existing-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
-APP_URL=http://localhost:3000
+APP_URL=http://cliniccare.localhost:3000
 NEXT_PUBLIC_HCAPTCHA_SITE_KEY=
 NEXT_PUBLIC_AUTH_MANUAL_LINKING=false
 ```
@@ -47,7 +48,7 @@ APP_URL là origin tin cậy cho CSRF và callback. Khi triển khai phải thay
 origin HTTPS thực tế. Không có dấu / cuối hoặc đường dẫn con.
 
 Auth của Next.js chỉ dùng publishable key và session người dùng.
-SUPABASE_SERVICE_ROLE_KEY chỉ cần cho API quản trị Express tại backend/.env
+SUPABASE_SERVICE_ROLE_KEY trong .env.local gốc chỉ cần cho API quản trị Express
 (hoặc cấu hình server tương ứng); không đặt NEXT_PUBLIC_ trước secret.
 Không đưa service key vào component, API response hoặc trình duyệt.
 
@@ -184,8 +185,10 @@ kiểm tra quota/IP khi triển khai sau proxy và dùng CAPTCHA.
 Không tự tin cậy X-Forwarded-For từ Internet.
 
 Authentication → Attack Protection → CAPTCHA:
-tạo hCaptcha site/secret, cấu hình domain local/production, bật CAPTCHA trong Supabase,
+Tạo hCaptcha site/secret, cấu hình domain local/production, bật CAPTCHA trong Supabase,
 đặt secret trên Dashboard và site key công khai trong NEXT_PUBLIC_HCAPTCHA_SITE_KEY.
+Dùng cliniccare.localhost khi chạy local (Chrome/Edge), tránh localhost/127.0.0.1 theo https://docs.hcaptcha.com/#local-development.
+APP_URL và các redirect URL Supabase phải khớp hostname truy cập.
 Các form email/password/signup/resend/recovery/magic link gửi captchaToken đến Supabase.
 Token hết hạn được xóa, widget làm mới sau mỗi lần gửi; secret không đi tới trình duyệt.
 Chưa bật CAPTCHA thì để site key rỗng. Chỉ code giao diện không bật CAPTCHA trên project.

@@ -1,403 +1,116 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import {
-  CalendarRange,
-  ChevronLeft,
-  ChevronRight,
-  CircleHelp,
-  LockKeyhole,
-  Plus,
-  X,
-  AlertCircle,
-} from 'lucide-react';
-import {
-  type TimeSlot,
-} from '../data';
-import {
-  DoctorButton,
-  Overlay,
-  Field,
-} from '../components/DoctorUI';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import type { NewSlot, TimeSlot } from '../data';
+import { DoctorButton, EmptyState, Field, Overlay, PageHeading } from '../components/DoctorUI';
 import { useDoctorStore } from '../store/store';
-import { todayISO, dateVN, longDate } from '../utils';
+import { addClinicDays, clinicDate, slotInstant } from '../workflow';
+import { dateVN, timeLabel } from '../utils';
 
-function SlotCreator({
-  existing,
-  onClose,
-  onCreate,
-}: {
-  existing: TimeSlot[];
-  onClose: () => void;
-  onCreate: (slots: TimeSlot[]) => void;
-}) {
-  const { doctor } = useDoctorStore();
-  const [startDate, setStartDate] = useState(todayISO());
-  const [endDate, setEndDate] = useState(() => {
-    const endDefault = typeof window === 'undefined' ? new Date('2026-11-09T00:00:00') : new Date();
-    endDefault.setDate(endDefault.getDate() + 6);
-    return endDefault.toISOString().slice(0, 10);
-  });
-  const [days, setDays] = useState([1, 2, 3, 4, 5]);
-  const [start, setStart] = useState('08:00');
-  const [end, setEnd] = useState('11:00');
-  const [length, setLength] = useState(30);
-  const [hasBreak, setHasBreak] = useState(true);
-  const [breakStart, setBreakStart] = useState('09:30');
-  const [breakEnd, setBreakEnd] = useState('10:00');
-
-  const preview = useMemo(() => {
-    const result: TimeSlot[] = [];
-    const begin = new Date(`${startDate}T12:00:00`);
-    const finish = new Date(`${endDate}T12:00:00`);
-    for (const d = new Date(begin); d <= finish; d.setDate(d.getDate() + 1)) {
-      if (days.includes(d.getDay())) {
-        const date = d.toISOString().slice(0, 10);
-        let mins = Number(start.slice(0, 2)) * 60 + Number(start.slice(3));
-        const max = Number(end.slice(0, 2)) * 60 + Number(end.slice(3));
-        while (mins + length <= max) {
-          const a = `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-          const em = mins + length;
-          const b = `${String(Math.floor(em / 60)).padStart(2, '0')}:${String(em % 60).padStart(2, '0')}`;
-          if (!hasBreak || b <= breakStart || a >= breakEnd) {
-            result.push({
-              id: `slot-new-${date}-${a}`,
-              doctor_id: doctor.id,
-              slot_date: date,
-              start_time: a,
-              end_time: b,
-              is_booked: false,
-              created_at: new Date().toISOString(),
-            });
-          }
-          mins += length;
-        }
-      }
+function createPreview(startDate: string, endDate: string, days: number[], start: string, end: string, duration: number,
+  rest: boolean, restStart: string, restEnd: string, existing: TimeSlot[], now: Date): { slots: NewSlot[]; error: string; skipped: number } {
+  const result: NewSlot[] = [];
+  let skipped = 0;
+  if (!addClinicDays(startDate, 0) || !addClinicDays(endDate, 0) || endDate < startDate || endDate > addClinicDays(startDate, 30)) {
+    return { slots: [], error: 'Chọn khoảng ngày hợp lệ, tối đa 31 ngày.', skipped };
+  }
+  if (!days.length || !start || !end || start >= end || ![15, 20, 30, 45, 60].includes(duration) || (rest && (!restStart || !restEnd || restStart >= restEnd))) {
+    return { slots: [], error: 'Kiểm tra ngày làm việc, giờ bắt đầu/kết thúc và giờ nghỉ.', skipped };
+  }
+  const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+  const time = (value: number) => String(Math.floor(value / 60)).padStart(2, '0') + ':' + String(value % 60).padStart(2, '0');
+  for (let date = startDate; date <= endDate; date = addClinicDays(date, 1)) {
+    if (!days.includes(new Date(date + 'T12:00:00Z').getUTCDay())) continue;
+    for (let value = minutes(start); value + duration <= minutes(end); value += duration) {
+      const slot = { slot_date: date, start_time: time(value), end_time: time(value + duration) };
+      if (rest && slot.start_time < restEnd && slot.end_time > restStart) continue;
+      if (Date.parse(date + 'T' + slot.start_time + ':00+07:00') <= now.getTime()) { skipped++; continue; }
+      result.push(slot);
+      if (result.length > 40) return { slots: result, error: 'Mỗi lần tạo tối đa 40 khung giờ. Thu hẹp khoảng ngày hoặc giờ khám.', skipped };
     }
-    return result;
-  }, [startDate, endDate, days, start, end, length, hasBreak, breakStart, breakEnd, doctor.id]);
-
-  const conflicts = preview.filter((p) =>
-    existing.some(
-      (e) =>
-        e.slot_date === p.slot_date &&
-        p.start_time < e.end_time &&
-        p.end_time > e.start_time
-    )
-  );
-
-  const valid =
-    preview.length > 0 &&
-    conflicts.length === 0 &&
-    endDate >= startDate &&
-    end > start;
-
-  const dayLabels = [
-    ['T2', 1],
-    ['T3', 2],
-    ['T4', 3],
-    ['T5', 4],
-    ['T6', 5],
-    ['T7', 6],
-    ['CN', 0],
-  ] as const;
-
-  return (
-    <Overlay title="Tạo khung giờ" onClose={onClose}>
-      <div className="form-section">
-        <h3>Khoảng ngày</h3>
-        <div className="form-grid two">
-          <Field label="Từ ngày">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </Field>
-          <Field label="Đến ngày">
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </Field>
-        </div>
-      </div>
-
-      <div className="form-section">
-        <h3>Ngày làm việc</h3>
-        <div className="weekday-picker">
-          {dayLabels.map(([label, d]) => (
-            <button
-              type="button"
-              className={days.includes(d) ? 'active' : ''}
-              key={d}
-              onClick={() =>
-                setDays((x) =>
-                  x.includes(d) ? x.filter((v) => v !== d) : [...x, d]
-                )
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-section">
-        <h3>Thời gian</h3>
-        <div className="form-grid three">
-          <Field label="Bắt đầu">
-            <input
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </Field>
-          <Field label="Kết thúc">
-            <input
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </Field>
-          <Field label="Độ dài">
-            <select
-              value={length}
-              onChange={(e) => setLength(Number(e.target.value))}
-            >
-              {[15, 20, 30, 45, 60].map((x) => (
-                <option key={x} value={x}>
-                  {x} phút
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={hasBreak}
-            onChange={(e) => setHasBreak(e.target.checked)}
-          />{' '}
-          Có giờ nghỉ
-        </label>
-
-        {hasBreak && (
-          <div className="form-grid two compact">
-            <Field label="Nghỉ từ">
-              <input
-                type="time"
-                value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
-              />
-            </Field>
-            <Field label="Đến">
-              <input
-                type="time"
-                value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
-
-      <div className={`preview-box ${conflicts.length ? 'warning' : ''}`}>
-        <div>
-          <CalendarRange size={20} />
-          <span>
-            <b>{preview.length} khung giờ</b>
-            <small>Dự kiến sẽ được tạo</small>
-          </span>
-        </div>
-        {conflicts.length > 0 && (
-          <p>
-            <AlertCircle size={16} /> Có {conflicts.length} khung giờ trùng hoặc chồng
-            lấn với lịch hiện tại.
-          </p>
-        )}
-      </div>
-
-      <div className="overlay-actions">
-        <DoctorButton variant="secondary" onClick={onClose}>
-          Hủy
-        </DoctorButton>
-        <DoctorButton
-          disabled={!valid}
-          onClick={() => onCreate(preview)}
-          icon={<Plus size={18} />}
-        >
-          Tạo {preview.length} khung giờ
-        </DoctorButton>
-      </div>
-    </Overlay>
-  );
+  }
+  const conflicts = result.filter(slot => existing.some(item => item.slot_date === slot.slot_date && slot.start_time < item.end_time && slot.end_time > item.start_time));
+  return { slots: result, error: conflicts.length ? 'Có ' + conflicts.length + ' khung giờ trùng hoặc chồng lấn với lịch hiện tại.' : '', skipped };
 }
-
+function SlotCreator({ onClose }: { onClose: () => void }) {
+  const store = useDoctorStore();
+  const today = clinicDate(store.now);
+  const [startDate, setStartDate] = useState(today), [endDate, setEndDate] = useState(addClinicDays(today, 6));
+  const [days, setDays] = useState([1, 2, 3, 4, 5]);
+  const [start, setStart] = useState('08:00'), [end, setEnd] = useState('11:00'), [duration, setDuration] = useState(30);
+  const [rest, setRest] = useState(false), [restStart, setRestStart] = useState('09:30'), [restEnd, setRestEnd] = useState('10:00');
+  const preview = createPreview(startDate, endDate, days, start, end, duration, rest, restStart, restEnd, store.slots, store.now);
+  const busy = !!store.pending;
+  return <Overlay title="Tạo khung giờ khám" onClose={() => { if (!busy) onClose(); }}>
+    <form onSubmit={async event => { event.preventDefault(); if (!preview.error && preview.slots.length && await store.addSlots(preview.slots)) onClose(); }}>
+      <fieldset disabled={busy} className="form-stack"><div className="form-grid two">
+        <Field label="Từ ngày"><input type="date" required min={today} value={startDate} onChange={event => setStartDate(event.target.value)} /></Field>
+        <Field label="Đến ngày"><input type="date" required min={startDate || today} value={endDate} onChange={event => setEndDate(event.target.value)} /></Field>
+      </div>
+        <div className="field"><span>Ngày làm việc</span><div className="weekday-picker">{['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((label, index) =>
+          <button type="button" key={label} aria-pressed={days.includes(index)} onClick={() => setDays(previous => previous.includes(index) ? previous.filter(day => day !== index) : [...previous, index])}>{label}</button>)}</div></div>
+        <div className="form-grid three"><Field label="Bắt đầu"><input type="time" required value={start} onChange={event => setStart(event.target.value)} /></Field>
+          <Field label="Kết thúc"><input type="time" required value={end} onChange={event => setEnd(event.target.value)} /></Field>
+          <Field label="Thời lượng mỗi lượt"><select value={duration} onChange={event => setDuration(Number(event.target.value))}>{[15, 20, 30, 45, 60].map(value => <option key={value} value={value}>{value} phút</option>)}</select></Field></div>
+        <label className="check-row"><input type="checkbox" checked={rest} onChange={event => setRest(event.target.checked)} />Có giờ nghỉ giữa buổi</label>
+        {rest && <div className="form-grid two"><Field label="Nghỉ từ"><input type="time" value={restStart} onChange={event => setRestStart(event.target.value)} /></Field>
+          <Field label="Đến"><input type="time" value={restEnd} onChange={event => setRestEnd(event.target.value)} /></Field></div>}
+        <div className={'notice' + (preview.error ? ' warning' : '')} aria-live="polite"><strong>{preview.slots.length} khung giờ dự kiến</strong>
+          {preview.error && <p>{preview.error}</p>}{preview.skipped > 0 && <p>Đã bỏ qua {preview.skipped} khung giờ trong quá khứ.</p>}
+          {!preview.error && preview.slots.length === 0 && <p>Chưa có khung giờ phù hợp. Chọn ngày hoặc thời gian khác.</p>}</div>
+        {!!preview.slots.length && !preview.error && <div className="slot-preview">{preview.slots.slice(0, 8).map(item =>
+          <span key={item.slot_date + item.start_time}>{dateVN(item.slot_date)} · {item.start_time}–{item.end_time}</span>)}{preview.slots.length > 8 && <small>Và {preview.slots.length - 8} khung giờ tiếp theo.</small>}</div>}
+        <div className="section-actions"><DoctorButton variant="secondary" onClick={onClose}>Quay lại</DoctorButton>
+          <DoctorButton type="submit" disabled={!!preview.error || !preview.slots.length}>{busy ? 'Đang tạo…' : 'Tạo ' + preview.slots.length + ' khung giờ'}</DoctorButton></div>
+      </fieldset>
+    </form>
+  </Overlay>;
+}
 export default function ScheduleView() {
-  const { slots, appointments, deleteSlot, addSlots, toast } = useDoctorStore();
-  const [mode, setMode] = useState<'day' | 'week'>('week');
-  const [anchor, setAnchor] = useState(() => (typeof window === 'undefined' ? new Date('2026-11-09T00:00:00') : new Date()));
-  const [creator, setCreator] = useState(false);
-
-  const dates = Array.from({ length: mode === 'week' ? 7 : 1 }, (_, i) => {
-    const d = new Date(anchor);
-    d.setDate(d.getDate() - (mode === 'week' ? (d.getDay() + 6) % 7 : 0) + i);
-    return d;
-  });
-
-  const move = (n: number) => {
-    const d = new Date(anchor);
-    d.setDate(d.getDate() + n * (mode === 'week' ? 7 : 1));
-    setAnchor(d);
-  };
-
-  return (
-    <div className="page-content">
-      <div className="page-heading heading-actions">
-        <div>
-          <p className="eyebrow">LỊCH LÀM VIỆC</p>
-          <h1>Khung giờ của tôi</h1>
-          <p className="heading-sub">
-            Tạo và quản lý thời gian bệnh nhân có thể đặt lịch.
-          </p>
-        </div>
-        <DoctorButton
-          icon={<Plus size={18} />}
-          onClick={() => setCreator(true)}
-        >
-          Tạo khung giờ
-        </DoctorButton>
-      </div>
-
-      <div className="card calendar-card">
-        <div className="calendar-toolbar">
-          <div className="segmented">
-            <button
-              type="button"
-              className={mode === 'day' ? 'active' : ''}
-              onClick={() => setMode('day')}
-            >
-              Ngày
-            </button>
-            <button
-              type="button"
-              className={mode === 'week' ? 'active' : ''}
-              onClick={() => setMode('week')}
-            >
-              Tuần
-            </button>
-          </div>
-
-          <div className="calendar-nav">
-            <button type="button" onClick={() => move(-1)} aria-label="Trước">
-              <ChevronLeft />
-            </button>
-            <strong>
-              {mode === 'week'
-                ? `${dateVN(dates[0].toISOString().slice(0, 10))} — ${dateVN(dates.at(-1)!.toISOString().slice(0, 10))}`
-                : longDate(dates[0].toISOString().slice(0, 10))}
-            </strong>
-            <button type="button" onClick={() => move(1)} aria-label="Sau">
-              <ChevronRight />
-            </button>
-          </div>
-
-          <DoctorButton variant="ghost" onClick={() => setAnchor(new Date())}>
-            Hôm nay
-          </DoctorButton>
-        </div>
-
-        <div className={`calendar-grid ${mode}`}>
-          {dates.map((d) => {
-            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const daySlots = slots.filter((s) => s.slot_date === iso);
-            return (
-              <div
-                className={`calendar-day ${iso === todayISO() ? 'today' : ''}`}
-                key={iso}
-              >
-                <header>
-                  <span>
-                    {new Intl.DateTimeFormat('vi-VN', { weekday: 'short' }).format(d)}
-                  </span>
-                  <b>{d.getDate()}</b>
-                </header>
-                <div className="slot-stack">
-                  {daySlots.length ? (
-                    daySlots.map((s) => {
-                      const a = appointments.find((x) => x.slot_id === s.id);
-                      const nowTimeString = typeof window === 'undefined' ? '00:00' : new Date().toTimeString().slice(0, 5);
-                      const isPast =
-                        `${s.slot_date}T${s.end_time}` < `${todayISO()}T${nowTimeString}`;
-                      return (
-                        <div
-                          className={`slot-chip ${a ? `booked ${a.status}` : 'free'} ${isPast ? 'past' : ''}`}
-                          key={s.id}
-                        >
-                          <span>
-                            {s.start_time}–{s.end_time}
-                          </span>
-                          {a ? (
-                            <LockKeyhole
-                              size={13}
-                              aria-label="Đã khóa vì có lịch hẹn"
-                            />
-                          ) : (
-                            !isPast && (
-                              <button
-                                type="button"
-                                aria-label="Xóa khung giờ"
-                                onClick={() => deleteSlot(s.id)}
-                              >
-                                <X size={14} />
-                              </button>
-                            )
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <span className="no-slots">Chưa có khung giờ</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="calendar-legend">
-          <span>
-            <i className="free" />
-            Trống
-          </span>
-          <span>
-            <i className="booked" />
-            Đã đặt
-          </span>
-          <span>
-            <i className="past" />
-            Đã qua
-          </span>
-          <span className="hint">
-            <CircleHelp size={15} /> Khung giờ đã đặt không thể xóa
-          </span>
-        </div>
-      </div>
-
-      {creator && (
-        <SlotCreator
-          existing={slots}
-          onClose={() => setCreator(false)}
-          onCreate={(s) => {
-            addSlots(s);
-            setCreator(false);
-            toast(`Đã tạo ${s.length} khung giờ mới`);
-          }}
-        />
-      )}
+  const store = useDoctorStore();
+  const [anchor, setAnchor] = useState(clinicDate(store.now)), [mode, setMode] = useState<'week' | 'day'>('week');
+  const [creator, setCreator] = useState(false), [deleting, setDeleting] = useState<TimeSlot | null>(null);
+  const weekday = (new Date(anchor + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  const dates = Array.from({ length: mode === 'week' ? 7 : 1 }, (_, index) => addClinicDays(anchor, mode === 'week' ? index - weekday : 0));
+  const appointments = new Map<string, typeof store.appointments>();
+  for (const appointment of store.appointments) appointments.set(appointment.slot_id, [...appointments.get(appointment.slot_id) || [], appointment]);
+  return <div className="page-content">
+    <PageHeading title="Lịch làm việc" description="Tạo giờ khám để nhận lịch đặt. Khung giờ đã có lịch sử được giữ lại."
+      actions={<DoctorButton icon={<Plus size={17} />} disabled={!!store.pending} onClick={() => setCreator(true)}>Tạo khung giờ</DoctorButton>} />
+    <section className="card"><div className="calendar-toolbar">
+      <div className="segmented"><button aria-pressed={mode === 'day'} onClick={() => setMode('day')}>Ngày</button><button aria-pressed={mode === 'week'} onClick={() => setMode('week')}>Tuần</button></div>
+      <div className="calendar-navigation"><DoctorButton variant="secondary" aria-label="Kỳ trước" onClick={() => setAnchor(addClinicDays(anchor, mode === 'week' ? -7 : -1))}><ChevronLeft size={17} /></DoctorButton>
+        <strong>{dateVN(dates[0])}{dates.length > 1 ? ' – ' + dateVN(dates[dates.length - 1]) : ''}</strong>
+        <DoctorButton variant="secondary" aria-label="Kỳ tiếp theo" onClick={() => setAnchor(addClinicDays(anchor, mode === 'week' ? 7 : 1))}><ChevronRight size={17} /></DoctorButton></div>
+      <div className="inline-actions"><label className="sr-only" htmlFor="calendar-date">Chọn ngày xem lịch</label><input id="calendar-date" type="date" value={anchor} onChange={event => { if (addClinicDays(event.target.value, 0)) setAnchor(event.target.value); }} />
+        <DoctorButton variant="ghost" onClick={() => setAnchor(clinicDate(store.now))}>Hôm nay</DoctorButton></div>
     </div>
-  );
+      <div className={'calendar-grid ' + mode}>{dates.map(date => {
+        const daySlots = store.slots.filter(slot => slot.slot_date === date).sort((a, b) => a.start_time.localeCompare(b.start_time));
+        return <section key={date} className={'calendar-day' + (date === clinicDate(store.now) ? ' today' : '')}>
+          <header><strong>{new Intl.DateTimeFormat('vi-VN', { weekday: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(date + 'T12:00:00+07:00'))} · {dateVN(date)}</strong><small>{daySlots.length} khung giờ</small></header>
+          {daySlots.length ? <div className="slot-stack">{daySlots.map(slot => {
+            const history = appointments.get(slot.id) || [];
+            const appointment = history.find(a => ['pending', 'confirmed', 'completed'].includes(a.status));
+            const past = slotInstant(slot) <= store.now.getTime();
+            const canDelete = !slot.is_booked && !history.length && !past;
+            return <div key={slot.id} className={'slot-chip ' + (slot.is_booked ? 'booked' : past ? 'past' : 'free')}>
+              <button className="slot-open" disabled={!appointment} onClick={() => { if (appointment) store.setSelectedAppointment(appointment); }}>
+                <strong>{timeLabel(slot.start_time)}–{timeLabel(slot.end_time)}</strong><small>{slot.is_booked ? 'Đã đặt' : history.length ? 'Đã có lịch sử' : past ? 'Đã qua / Đang diễn ra' : 'Còn trống'}</small></button>
+              {canDelete && <button className="icon-button" disabled={!!store.pending} aria-label={'Xóa khung giờ ' + slot.start_time + ' ngày ' + dateVN(date)} onClick={() => setDeleting(slot)}><Trash2 size={15} /></button>}
+            </div>;
+          })}</div> : <p className="no-slots">Chưa có khung giờ</p>}
+        </section>;
+      })}</div>
+      {!store.slots.length && <EmptyState title="Bạn chưa có lịch làm việc" description="Chọn Tạo khung giờ để bắt đầu nhận lịch đặt từ bệnh nhân." />}
+      <div className="calendar-legend"><span><i className="free" />Còn trống</span><span><i className="booked" />Đã đặt</span><span><i className="past" />Đã qua</span></div>
+    </section>
+    {creator && <SlotCreator onClose={() => setCreator(false)} />}
+    {deleting && <Overlay title="Xóa khung giờ trống?" onClose={() => { if (!store.pending) setDeleting(null); }}>
+      <p>{dateVN(deleting.slot_date)} · {timeLabel(deleting.start_time)}–{timeLabel(deleting.end_time)}. Bệnh nhân sẽ không thể đặt giờ này sau khi xóa.</p>
+      <div className="section-actions"><DoctorButton variant="secondary" disabled={!!store.pending} onClick={() => setDeleting(null)}>Quay lại</DoctorButton>
+        <DoctorButton variant="danger" disabled={!!store.pending} onClick={async () => { if (await store.deleteSlot(deleting.id)) setDeleting(null); }}>{store.pending ? 'Đang xóa…' : 'Xác nhận xóa'}</DoctorButton></div>
+    </Overlay>}
+  </div>;
 }

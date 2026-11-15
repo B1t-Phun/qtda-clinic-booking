@@ -2,7 +2,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock, DoorOpen, Plus, UserX, X, XCircle } from 'lucide-react'
 import { useStore, type ApptView } from '@/modules/admin/store/store'
-import { CANCEL_REASONS } from '@/modules/admin/store/seed'
+import { CANCEL_REASONS } from '@/modules/admin/store/constants'
 import type { Gender, Status } from '@/modules/admin/store/types'
 import { addDays, age, cx, fmtDate, fmtDateTime, fmtVND, GENDER_LABEL, normalize, STATUS_META, todayISO, WEEKDAYS } from '@/lib/format'
 import { navigate } from '@/lib/router'
@@ -318,6 +318,7 @@ function CreateAppointment({ onClose, onCreated }: { onClose: () => void; onCrea
   const [reason, setReason] = useState('')
   const [reasonTouched, setReasonTouched] = useState(false)
   const [status, setStatus] = useState<Status>('confirmed')
+  const [saving, setSaving] = useState(false)
 
   const patients = store.db.profiles.filter((p) => p.role === 'patient')
   const nq = normalize(q)
@@ -326,31 +327,62 @@ function CreateAppointment({ onClose, onCreated }: { onClose: () => void; onCrea
   const freeSlots = store.db.time_slots.filter((s) => s.doctor_id === docId && !s.is_booked && isFutureSlot(s.slot_date, s.start_time))
   const dates = Array.from({ length: 21 }, (_, i) => addDays(todayISO(), i))
   const npErr = {
-    full_name: !np.full_name.trim() ? 'Nhập họ tên' : '',
+    full_name: np.full_name.trim().length < 2 ? 'Nhập họ tên (ít nhất 2 ký tự)' : '',
     phone: !phoneOk(np.phone) ? 'Số điện thoại gồm 10 số, bắt đầu bằng 0' : '',
-    email: !emailOk(np.email) ? 'Email không hợp lệ' : store.emailTaken(np.email) ? 'Email đã được sử dụng' : '',
+    email: np.email.trim() && !emailOk(np.email) ? 'Email không hợp lệ' : np.email.trim() && store.emailTaken(np.email) && !store.patientAccountExists(np.email) ? 'Email đã được sử dụng' : '',
   }
   const patient = patientId ? store.maps.profiles.get(patientId) : null
   const doctor = store.doctorViews.find((d) => d.id === docId)
   const slot = slotId ? store.maps.slots.get(slotId) : null
 
   const canNext = [
-    newMode ? true : !!patientId, !!spId, !!docId, !!date, !!slotId, reason.trim().length > 0, true,
+    newMode ? true : !!patientId, !!spId, !!docId, !!date, !!slotId, reason.trim().length > 0, !!patientId && !!docId && !!slotId,
   ][step]
-  const next = () => {
+  const next = async () => {
+    if (saving) return
     if (step === 0 && newMode) {
       setNpTouched(true)
       if (Object.values(npErr).some(Boolean)) return
-      const p = store.saveProfile({ full_name: np.full_name.trim(), phone: np.phone.trim(), email: np.email.trim(), gender: np.gender || null, date_of_birth: np.date_of_birth || null })
+      let p
+      setSaving(true)
+      try {
+        const existingPatient = np.email.trim() ? patients.find((profile) => profile.email.toLowerCase() === np.email.trim().toLowerCase()) : undefined
+        p = existingPatient
+          ? store.saveProfile({ id: existingPatient.id, full_name: np.full_name.trim(), phone: np.phone.trim(), email: np.email.trim(), gender: np.gender || null, date_of_birth: np.date_of_birth || null })
+          : await store.createPatientRecord({
+              full_name: np.full_name.trim(),
+              phone: np.phone.trim(),
+              email: np.email.trim(),
+              gender: np.gender || null,
+              date_of_birth: np.date_of_birth || null,
+              address: null,
+              avatar_url: null,
+            })
+      } catch (error) {
+        const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : null
+        toast({ tone: 'error', title: error instanceof Error ? error.message : message || 'Không thể tạo hồ sơ bệnh nhân' })
+        return
+      } finally {
+        setSaving(false)
+      }
       setPatientId(p.id)
       setNewMode(false)
       toast({ tone: 'success', title: 'Đã tạo hồ sơ bệnh nhân', description: p.full_name })
     }
     if (step === 5 && !reason.trim()) return setReasonTouched(true)
     if (step === 6) {
-      const id = store.createAppointment({ patient_id: patientId!, doctor_id: docId!, slot_id: slotId!, reason: reason.trim(), status })
-      toast({ tone: 'success', title: `Đã tạo lịch hẹn #${id}`, description: `${patient!.full_name} · ${slot!.start_time} ${fmtDate(slot!.slot_date)}` })
-      return onCreated(id)
+      setSaving(true)
+      try {
+        const id = await store.createAppointment({ patient_id: patientId!, doctor_id: docId!, slot_id: slotId!, reason: reason.trim(), status })
+        toast({ tone: 'success', title: `Đã tạo lịch hẹn #${id}`, description: `${patient!.full_name} · ${slot!.start_time} ${fmtDate(slot!.slot_date)}` })
+        return onCreated(id)
+      } catch (error) {
+        const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : null
+        toast({ tone: 'error', title: error instanceof Error ? error.message : message || 'Không thể tạo lịch hẹn' })
+        return
+      } finally {
+        setSaving(false)
+      }
     }
     setStep(step + 1)
   }
@@ -366,7 +398,7 @@ function CreateAppointment({ onClose, onCreated }: { onClose: () => void; onCrea
         <>
           {step > 0 && <Button variant="ghost" className="mr-auto" icon={<ChevronLeft className="size-4" />} onClick={() => setStep(step - 1)}>Quay lại</Button>}
           <Button variant="secondary" onClick={onClose}>Hủy bỏ</Button>
-          <Button onClick={next} disabled={!canNext && step !== 5}>{step === 6 ? 'Tạo lịch hẹn' : step === 0 && newMode ? 'Tạo bệnh nhân & tiếp tục' : 'Tiếp tục'}</Button>
+          <Button onClick={next} disabled={saving || (!canNext && step !== 5)}>{saving ? 'Đang lưu…' : step === 6 ? 'Tạo lịch hẹn' : step === 0 && newMode ? 'Tạo bệnh nhân & tiếp tục' : 'Tiếp tục'}</Button>
         </>
       }
     >
@@ -402,7 +434,7 @@ function CreateAppointment({ onClose, onCreated }: { onClose: () => void; onCrea
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Họ và tên" required error={npTouched ? npErr.full_name : ''} className="sm:col-span-2"><Input value={np.full_name} onChange={(e) => setNp({ ...np, full_name: e.target.value })} invalid={npTouched && !!npErr.full_name} /></Field>
           <Field label="Số điện thoại" required error={npTouched ? npErr.phone : ''}><Input inputMode="tel" value={np.phone} onChange={(e) => setNp({ ...np, phone: e.target.value })} invalid={npTouched && !!npErr.phone} /></Field>
-          <Field label="Email" required error={npTouched ? npErr.email : ''}><Input type="email" value={np.email} onChange={(e) => setNp({ ...np, email: e.target.value })} invalid={npTouched && !!npErr.email} /></Field>
+          <Field label="Email (tùy chọn)" error={npTouched ? npErr.email : ''}><Input type="email" value={np.email} onChange={(e) => setNp({ ...np, email: e.target.value })} invalid={npTouched && !!npErr.email} /></Field>
           <Field label="Giới tính"><Select value={np.gender} onChange={(e) => setNp({ ...np, gender: e.target.value as Gender })}><option value="">Chọn…</option>{(['male', 'female', 'other'] as Gender[]).map((g) => <option key={g} value={g}>{GENDER_LABEL[g]}</option>)}</Select></Field>
           <Field label="Ngày sinh"><Input type="date" max={todayISO()} value={np.date_of_birth} onChange={(e) => setNp({ ...np, date_of_birth: e.target.value })} /></Field>
           <button onClick={() => setNewMode(false)} className="text-left text-13 font-medium text-primary sm:col-span-2">← Chọn bệnh nhân có sẵn</button>
@@ -463,7 +495,7 @@ function CreateAppointment({ onClose, onCreated }: { onClose: () => void; onCrea
       )}
       {step === 5 && (
         <Field label="Lý do khám" required error={reasonTouched && !reason.trim() ? 'Vui lòng nhập lý do khám' : undefined}>
-          <Textarea autoFocus rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: Sốt, ho kéo dài 3 ngày" invalid={reasonTouched && !reason.trim()} />
+          <Textarea autoFocus rows={4} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: Sốt, ho kéo dài 3 ngày" invalid={reasonTouched && !reason.trim()} />
         </Field>
       )}
       {step === 6 && patient && doctor && slot && (

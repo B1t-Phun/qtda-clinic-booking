@@ -2,6 +2,7 @@
 
 export type HCaptchaApi = {
   render: (container: HTMLElement, options: Record<string, unknown>) => string | number;
+  reset: (id: string | number) => void;
   remove: (id: string | number) => void;
 };
 declare global {
@@ -39,4 +40,17 @@ export function loadHCaptcha(): Promise<HCaptchaApi> {
     document.head.appendChild(script);
   }).catch(error => { loading = undefined; throw error; });
   return loading;
+}
+
+export function hcaptchaFailure(reason: unknown) {
+  const code = typeof reason === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(reason)
+    ? reason : 'unknown-error';
+  const messages: Record<string, string> = {
+    'network-error': 'Không kết nối được với hCaptcha. Kiểm tra mạng hoặc tiện ích chặn nội dung rồi thử lại.',
+    'challenge-error': 'Không khởi tạo được thử thách xác minh. Vui lòng thử lại.',
+    'internal-error': 'Dịch vụ hCaptcha gặp lỗi. Vui lòng thử lại.',
+    'rate-limited': 'Bạn đã thử xác minh quá nhiều lần. Vui lòng chờ một lúc rồi thử lại.',
+    'invalid-data': 'hCaptcha không chấp nhận cấu hình hoặc địa chỉ truy cập hiện tại.',
+  };
+  return { code, message: messages[code] || 'Không thể xác minh. Vui lòng thử lại.' };
 }

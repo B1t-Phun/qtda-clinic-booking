@@ -29,7 +29,7 @@ export async function authRequest(action: string, body: unknown) {
   return data as { message?: string; redirect?: string; user?: AuthUser; url?: string; id?: string; qrCode?: string; secret?: string; recoveryFactors?: { id: string; friendlyName?: string }[] };
 }
 
-export async function logout() {
+export async function logout(onError?: unknown) {
   try {
     await authRequest('logout', {});
     if (typeof BroadcastChannel !== 'undefined') {
@@ -38,6 +38,6 @@ export async function logout() {
     }
     window.location.replace('/login');
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : 'Không thể đăng xuất. Vui lòng thử lại.');
+    (typeof onError === 'function' ? onError : window.alert)(error instanceof Error ? error.message : 'Không thể đăng xuất. Vui lòng thử lại.');
   }
 }

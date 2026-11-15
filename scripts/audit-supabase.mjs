@@ -170,7 +170,7 @@ export async function collect(env, fetcher = fetch) {
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('node scripts/audit-supabase.mjs [--json]\nHợp nhất các file .env ở root, backend, frontend, supabase; shell được ưu tiên.\nTùy chọn SUPABASE_ACCESS_TOKEN để đọc Management API. Không dùng service role.\nChỉ GET; không in secrets, không sửa cấu hình và không gửi email.');
+    console.log('node scripts/audit-supabase.mjs [--json]\nĐọc .env.local ở thư mục gốc; shell được ưu tiên.\nTùy chọn SUPABASE_ACCESS_TOKEN để đọc Management API. Không dùng service role.\nChỉ GET; không in secrets, không sửa cấu hình và không gửi email.');
     return;
   }
   if (args.some(arg => arg !== '--json')) throw new Error('Unknown argument');
@@ -190,7 +190,7 @@ async function main() {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(() => {
-    console.error('Không thể kiểm tra. Kiểm tra frontend/.env.local, URL/API key và tham số --help. Không ghi log secrets.');
+    console.error('Không thể kiểm tra. Kiểm tra .env.local ở thư mục gốc, URL/API key và tham số --help. Không ghi log secrets.');
     process.exitCode = 1;
   });
 }

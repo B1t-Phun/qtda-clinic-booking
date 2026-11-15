@@ -17,7 +17,7 @@ import {
   Phone,
   Clock,
   MapPin,
-  User,
+  UserRound,
 } from 'lucide-react';
 import { ToastProvider } from '@/components/ui/overlay';
 import { Button, Avatar } from '@/components/ui/core';
@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/client/specialties', label: 'Chuyên khoa', icon: Layers },
   { href: '/client/booking', label: 'Đặt lịch', icon: CalendarPlus },
   { href: '/client/appointments', label: 'Lịch hẹn', icon: ClipboardList },
-  { href: '/client/profile', label: 'Hồ sơ cá nhân', icon: User },
+  { href: '/client/profile', label: 'Hồ sơ của tôi', icon: UserRound },
 ];
 
 function ClientHeader() {
@@ -44,7 +44,7 @@ function ClientHeader() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
-  const currentUser = { id: user.id, email: user.email, full_name: user.fullName };
+  const currentUser = { id: user.id, email: user.email, full_name: user.fullName, avatar_url: user.avatarUrl };
   const loadingUser = false;
   const handleLogout = async () => {
     setMobileMenuOpen(false);
@@ -76,7 +76,7 @@ function ClientHeader() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -109,7 +109,7 @@ function ClientHeader() {
                 className="flex items-center gap-2 group p-1 -m-1 rounded-lg hover:bg-slate-50 transition-colors"
                 title="Hồ sơ cá nhân của bạn"
               >
-                <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={32} />
+                <Avatar name={currentUser.full_name || 'Bệnh nhân'} url={currentUser.avatar_url} size={32} />
                 <div className="text-left hidden lg:block">
                   <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate group-hover:text-primary transition-colors">
                     {currentUser.full_name}
@@ -124,14 +124,13 @@ function ClientHeader() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  icon={<User className="size-3.5" />}
+                  icon={<UserRound className="size-3.5" />}
                   title="Xem và chỉnh sửa thông tin cá nhân"
                   className="h-8 px-2.5 text-xs text-slate-700 hover:text-primary"
                 >
                   <span className="hidden xl:inline">Hồ sơ</span>
                 </Button>
               </Link>
-
               <Button
                 variant="ghost"
                 size="sm"
@@ -160,7 +159,7 @@ function ClientHeader() {
         </div>
 
         {/* Mobile menu hamburger button */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 xl:hidden">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -174,7 +173,7 @@ function ClientHeader() {
 
       {/* Mobile navigation drawer / dropdown */}
       {mobileMenuOpen && (
-        <div className="border-b border-line bg-white px-4 pt-2 pb-5 md:hidden animate-fade-in">
+        <div className="border-b border-line bg-white px-4 pt-2 pb-5 xl:hidden animate-fade-in">
           <nav className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href);
@@ -200,40 +199,17 @@ function ClientHeader() {
 
           <div className="mt-4 pt-4 border-t border-line">
             {currentUser ? (
-              <div className="flex flex-col gap-3">
-                <Link
-                  href="/client/profile"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Avatar name={currentUser.full_name || 'Bệnh nhân'} size={36} />
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-ink leading-tight">{currentUser.full_name}</p>
-                      <p className="text-xs text-muted truncate max-w-[180px]">{currentUser.email}</p>
-                    </div>
+              <div className="flex items-center justify-between">
+                <Link href="/client/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5">
+                  <Avatar name={currentUser.full_name || 'Bệnh nhân'} url={currentUser.avatar_url} size={36} />
+                  <div>
+                    <p className="text-sm font-semibold text-ink">{currentUser.full_name}</p>
+                    <p className="text-xs text-muted truncate max-w-[200px]">{currentUser.email}</p>
                   </div>
-                  <span className="text-xs font-semibold text-primary">Xem hồ sơ &rarr;</span>
                 </Link>
-
-                <div className="flex items-center justify-between pt-1">
-                  <Link
-                    href="/client/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-xs font-medium text-slate-700 hover:text-primary flex items-center gap-1.5"
-                  >
-                    <User className="size-3.5" />
-                    Chỉnh sửa thông tin
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={<LogOut className="size-4 text-red-500" />}
-                    onClick={handleLogout}
-                  >
-                    Thoát
-                  </Button>
-                </div>
+                <Button variant="ghost" size="sm" icon={<LogOut className="size-4 text-red-500" />} onClick={handleLogout}>
+                  Thoát
+                </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2">

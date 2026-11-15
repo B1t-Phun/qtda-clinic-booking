@@ -44,7 +44,7 @@ export function validTokenHash(value: unknown): value is string {
 // The HTTP boundary also limits operations before Postgres applies row ownership.
 export function canAccessData(role: UserRole, resource: string, method: string): boolean {
   const read = method === 'GET' || method === 'HEAD';
-  if (resource === 'rpc/admin_set_user_role') return role === 'admin' && method === 'POST';
+  if (['rpc/admin_set_user_role', 'rpc/admin_save_doctor', 'rpc/admin_set_doctor_active', 'rpc/admin_delete_doctor', 'rpc/admin_save_specialty', 'rpc/admin_create_patient', 'rpc/admin_create_appointment'].includes(resource)) return role === 'admin' && method === 'POST';
   if (!['profiles', 'specialties', 'doctors', 'time_slots', 'appointments'].includes(resource)) return false;
   if (role === 'admin' || read) return true;
   if (resource === 'profiles') return method === 'PATCH';

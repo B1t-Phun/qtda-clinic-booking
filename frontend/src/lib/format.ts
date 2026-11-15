@@ -2,7 +2,13 @@ import type { Gender, Role, Status } from '@/modules/admin/store/types'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 export const toISODate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-export const todayISO = () => (typeof window === 'undefined' ? '2026-11-09' : toISODate(new Date()))
+export const todayISO = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
 export const parseISODate = (s: string) => {
   const [y, m, d] = s.slice(0, 10).split('-').map(Number)
   return new Date(y, m - 1, d)
