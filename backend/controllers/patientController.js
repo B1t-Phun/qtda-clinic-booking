@@ -470,3 +470,135 @@ exports.cancelAppointment = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ==========================================
+// 4. PATIENT PROFILE
+// ==========================================
+
+// Lấy thông tin hồ sơ bệnh nhân kèm thống kê
+exports.getProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu patient id',
+      });
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hồ sơ người dùng',
+      });
+    }
+
+    // Lấy số liệu thống kê lịch hẹn
+    const { count: totalAppointments } = await supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('patient_id', id);
+
+    const { count: pendingAppointments } = await supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('patient_id', id)
+      .in('status', ['pending', 'confirmed']);
+
+    const { count: completedAppointments } = await supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('patient_id', id)
+      .eq('status', 'completed');
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...profile,
+        stats: {
+          totalAppointments: totalAppointments || 0,
+          pendingAppointments: pendingAppointments || 0,
+          completedAppointments: completedAppointments || 0,
+        },
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Cập nhật thông tin hồ sơ bệnh nhân
+exports.updateProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { full_name, phone, date_of_birth, gender, address, avatar_url } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu patient id',
+      });
+    }
+
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Họ và tên không được để trống',
+      });
+    }
+
+    // Validate phone nếu có
+    if (phone && phone.trim()) {
+      const phoneClean = phone.trim().replace(/[\s.-]/g, '');
+      const phoneRegex = /^(84|0)(3|5|7|8|9)[0-9]{8}$/;
+      if (!phoneRegex.test(phoneClean)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Số điện thoại không hợp lệ (phải gồm 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09 hoặc 84)',
+        });
+      }
+    }
+
+    // Validate gender nếu có
+    if (gender && !['male', 'female', 'other'].includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Giới tính không hợp lệ (chỉ chấp nhận: male, female, other)',
+      });
+    }
+
+    const payload = {
+      full_name: full_name.trim(),
+      phone: phone && phone.trim() ? phone.trim() : null,
+      date_of_birth: date_of_birth || null,
+      gender: gender || null,
+      address: address && address.trim() ? address.trim() : null,
+      avatar_url: avatar_url && avatar_url.trim() ? avatar_url.trim() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updated, error } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật thông tin cá nhân thành công',
+      data: updated,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

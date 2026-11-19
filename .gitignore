@@ -149,5 +149,13 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
+# VS Code Local History
+.history/
+*.local
+
+# Presentation files (local presentation only)
+*.pptx
+ClinicCare_Slide_Thuyet_Trinh.html
+
 # Local Doctor visual review artifacts (may contain patient data)
 /artifacts/doctor/

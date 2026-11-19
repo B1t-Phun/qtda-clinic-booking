@@ -103,11 +103,15 @@ function ClientHeader() {
           {loadingUser ? (
             <div className="size-9 rounded-full bg-slate-100 animate-pulse" />
           ) : currentUser ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-line">
-              <Link href="/client/profile" aria-label="Xem hồ sơ của tôi" className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 pl-2 border-l border-line">
+              <Link
+                href="/client/profile"
+                className="flex items-center gap-2 group p-1 -m-1 rounded-lg hover:bg-slate-50 transition-colors"
+                title="Hồ sơ cá nhân của bạn"
+              >
                 <Avatar name={currentUser.full_name || 'Bệnh nhân'} url={currentUser.avatar_url} size={32} />
                 <div className="text-left hidden lg:block">
-                  <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate">
+                  <p className="text-xs font-semibold text-ink leading-tight max-w-[120px] truncate group-hover:text-primary transition-colors">
                     {currentUser.full_name}
                   </p>
                   <p className="text-[11px] text-muted leading-tight truncate max-w-[120px]">
@@ -115,13 +119,25 @@ function ClientHeader() {
                   </p>
                 </div>
               </Link>
+
+              <Link href="/client/profile">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<UserRound className="size-3.5" />}
+                  title="Xem và chỉnh sửa thông tin cá nhân"
+                  className="h-8 px-2.5 text-xs text-slate-700 hover:text-primary"
+                >
+                  <span className="hidden xl:inline">Hồ sơ</span>
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"
                 icon={<LogOut className="size-4" />}
                 onClick={handleLogout}
                 title="Đăng xuất"
-                className="text-slate-500 hover:text-red-600"
+                className="text-slate-500 hover:text-red-600 h-8 px-2.5"
               >
                 <span className="hidden xl:inline">Thoát</span>
               </Button>
@@ -278,6 +294,11 @@ function ClientFooter() {
               <li>
                 <Link href="/client/appointments" className="text-slate-600 hover:text-primary transition-colors">
                   Lịch hẹn của tôi
+                </Link>
+              </li>
+              <li>
+                <Link href="/client/profile" className="text-slate-600 hover:text-primary transition-colors">
+                  Thông tin cá nhân
                 </Link>
               </li>
             </ul>

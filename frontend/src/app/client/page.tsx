@@ -13,6 +13,7 @@ import {
   UserCheck,
   Calendar,
   Sparkles,
+  User,
 } from 'lucide-react';
 import { Card, Button } from '@/components/ui/core';
 import { createClient } from '@/lib/supabase/client';
@@ -98,6 +99,21 @@ export default function ClientDashboardPage() {
     }
 
     loadDashboardData();
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ full_name?: string }>;
+      if (customEvent.detail?.full_name) {
+        setUserName(customEvent.detail.full_name);
+      } else {
+        loadDashboardData();
+      }
+    };
+
+    window.addEventListener('cliniccare:profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('cliniccare:profile-updated', handleProfileUpdate);
+    };
   }, []);
 
   const upcomingDoctor = upcomingAppointment ? getAppointmentDoctor(upcomingAppointment) : null;
@@ -140,6 +156,16 @@ export default function ClientDashboardPage() {
                 className="bg-white/90 text-slate-800 hover:bg-white border-0 shadow-md"
               >
                 Danh sách Bác sĩ
+              </Button>
+            </Link>
+            <Link href="/client/profile">
+              <Button
+                variant="ghost"
+                size="lg"
+                icon={<User className="size-5 text-white" />}
+                className="bg-white/15 text-white hover:bg-white/25 border-0 shadow-sm"
+              >
+                Hồ sơ cá nhân
               </Button>
             </Link>
           </div>

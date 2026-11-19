@@ -66,6 +66,14 @@ function BookingContent() {
   const [selectedSpecialtyId, setSelectedSpecialtyId] = useState<string>(urlSpecialtyId || 'all');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(urlDoctorId || '');
 
+  // Đồng bộ lựa chọn từ URL query param khi người dùng điều hướng tới trang Đặt lịch
+  useEffect(() => {
+    const sId = searchParams.get('specialty');
+    const dId = searchParams.get('doctor_id');
+    if (sId) setSelectedSpecialtyId(sId);
+    if (dId) setSelectedDoctorId(dId);
+  }, [searchParams]);
+
   // Step 2 selections
   const next14Days = useMemo(() => {
     const list = [];

@@ -167,3 +167,22 @@ export function getAppointmentSlot(appt: AppointmentItem): TimeSlotItem | null {
   if (Array.isArray(appt.slot)) return appt.slot[0] || null;
   return appt.slot;
 }
+
+export interface PatientProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string | null;
+  role?: string;
+  date_of_birth?: string | null;
+  gender?: 'male' | 'female' | 'other' | null;
+  address?: string | null;
+  avatar_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  stats?: {
+    totalAppointments: number;
+    pendingAppointments: number;
+    completedAppointments: number;
+  };
+}
